@@ -10,226 +10,215 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #f7f6f2;
-    --surface: #ffffff;
-    --border: #e2e0d8;
-    --border-light: #eceae3;
-    --text: #1a1917;
-    --muted: #8a8880;
-    --math:   #2d5a8e; --bio:    #2e7d52; --chem:   #b5451b;
-    --phys:   #6b35a8; --acc:    #b58c1a; --cs:     #1a6b6b;
-    --math-bg:#eef3fa; --bio-bg: #edf7f1; --chem-bg:#fdf0ec;
-    --phys-bg:#f4eefb; --acc-bg: #fdf7e8; --cs-bg:  #eaf5f5;
+    --bg: #f7f6f2; --surface: #ffffff; --border: #e2e0d8; --border-light: #eceae3;
+    --text: #1a1917; --muted: #8a8880;
+    --math:#2d5a8e; --bio:#2e7d52; --chem:#b5451b; --phys:#6b35a8; --acc:#b58c1a; --cs:#1a6b6b;
+    --math-bg:#eef3fa; --bio-bg:#edf7f1; --chem-bg:#fdf0ec; --phys-bg:#f4eefb; --acc-bg:#fdf7e8; --cs-bg:#eaf5f5;
   }
-
   [data-theme="dark"] {
-    --bg: #111110;
-    --surface: #1c1c1a;
-    --border: #2e2d2a;
-    --border-light: #252522;
-    --text: #e8e6e0;
-    --muted: #6a6860;
-    --math-bg:#0e1825; --bio-bg: #0d1f17; --chem-bg:#271208;
-    --phys-bg:#1a0f2e; --acc-bg: #251e08; --cs-bg:  #081a1a;
+    --bg:#111110; --surface:#1c1c1a; --border:#2e2d2a; --border-light:#252522; --text:#e8e6e0; --muted:#6a6860;
+    --math-bg:#0e1825; --bio-bg:#0d1f17; --chem-bg:#271208; --phys-bg:#1a0f2e; --acc-bg:#251e08; --cs-bg:#081a1a;
   }
 
   html { scroll-behavior: smooth; }
+  body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; font-size:15px; line-height:1.6; transition:background .2s,color .2s; }
 
-  body {
-    font-family: 'DM Sans', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    font-size: 15px;
-    line-height: 1.6;
-    transition: background 0.2s, color 0.2s;
-  }
+  .site-wrapper { display:flex; min-height:100vh; }
 
-  .site-wrapper { display: flex; min-height: 100vh; }
+  /* ── SIDEBAR ── */
+  .sidebar { width:225px; flex-shrink:0; background:var(--surface); border-right:1px solid var(--border); display:flex; flex-direction:column; position:fixed; top:0; left:0; bottom:0; z-index:100; padding:2rem 0; transition:background .2s,border-color .2s; }
+  .sidebar-brand { padding:0 1.5rem 1.5rem; border-bottom:1px solid var(--border-light); margin-bottom:1.5rem; }
+  .sidebar-brand .name { font-family:'DM Serif Display',serif; font-size:18px; color:var(--text); letter-spacing:-.02em; display:block; line-height:1.25; }
+  .sidebar-brand .subtitle { font-size:11px; color:var(--muted); letter-spacing:.08em; text-transform:uppercase; margin-top:5px; font-family:'DM Mono',monospace; }
+  .sidebar-section-label { font-size:10px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); padding:0 1.5rem; margin-bottom:.5rem; }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:9px 1.5rem; font-size:13.5px; color:var(--muted); cursor:pointer; transition:all .15s; border-left:2px solid transparent; text-decoration:none; font-weight:400; }
+  .nav-item:hover { color:var(--text); background:var(--bg); }
+  .nav-item.active { color:var(--text); font-weight:500; border-left-color:var(--text); background:var(--bg); }
+  .nav-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .nav-count { margin-left:auto; font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); background:var(--bg); padding:1px 6px; border-radius:99px; }
+  .sidebar-footer { margin-top:auto; padding:1.25rem 1.5rem; border-top:1px solid var(--border-light); }
+  .sidebar-stats-label { font-size:10px; font-weight:500; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:.75rem; }
+  .sidebar-stat { display:flex; justify-content:space-between; font-size:12px; margin-bottom:4px; }
+  .sidebar-stat span:first-child { color:var(--muted); }
+  .sidebar-stat span:last-child { font-family:'DM Mono',monospace; font-weight:500; }
+  .theme-toggle { display:flex; align-items:center; justify-content:space-between; margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border-light); }
+  .theme-label { font-size:12px; color:var(--muted); }
+  .toggle-pill { width:36px; height:20px; background:var(--border); border-radius:99px; cursor:pointer; position:relative; transition:background .2s; border:none; flex-shrink:0; }
+  .toggle-pill::after { content:''; width:14px; height:14px; background:var(--surface); border-radius:50%; position:absolute; top:3px; left:3px; transition:transform .2s; box-shadow:0 1px 3px rgba(0,0,0,.25); }
+  [data-theme="dark"] .toggle-pill { background:#5a5a56; }
+  [data-theme="dark"] .toggle-pill::after { transform:translateX(16px); }
 
-  /* SIDEBAR */
-  .sidebar {
-    width: 225px; flex-shrink: 0;
-    background: var(--surface);
-    border-right: 1px solid var(--border);
-    display: flex; flex-direction: column;
-    position: fixed; top: 0; left: 0; bottom: 0;
-    z-index: 100; padding: 2rem 0;
-    transition: background 0.2s, border-color 0.2s;
-  }
+  /* ── MAIN ── */
+  .main { margin-left:225px; flex:1; padding:2.5rem 3rem; max-width:960px; }
+  .page { display:none; }
+  .page.active { display:block; animation:fadeIn .2s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(5px)} to{opacity:1;transform:translateY(0)} }
 
-  .sidebar-brand { padding: 0 1.5rem 1.5rem; border-bottom: 1px solid var(--border-light); margin-bottom: 1.5rem; }
-  .sidebar-brand .name { font-family: 'DM Serif Display', serif; font-size: 18px; color: var(--text); letter-spacing: -0.02em; display: block; line-height: 1.25; }
-  .sidebar-brand .subtitle { font-size: 11px; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 5px; font-family: 'DM Mono', monospace; }
+  /* ── PAGE HEADER ── */
+  .page-header { display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:2rem; padding-bottom:1.5rem; border-bottom:1px solid var(--border); gap:12px; flex-wrap:wrap; }
+  .page-header-left { display:flex; align-items:flex-end; gap:14px; }
+  .page-eyebrow { font-size:11px; font-family:'DM Mono',monospace; color:var(--muted); letter-spacing:.06em; text-transform:uppercase; margin-bottom:4px; }
+  .page-title { font-family:'DM Serif Display',serif; font-size:30px; letter-spacing:-.02em; line-height:1.1; }
+  .page-header-actions { display:flex; gap:8px; align-items:center; padding-bottom:4px; flex-wrap:wrap; }
 
-  .sidebar-section-label { font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 0 1.5rem; margin-bottom: 0.5rem; }
+  .back-btn { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:500; color:var(--muted); background:none; border:1px solid var(--border); border-radius:8px; padding:6px 12px; cursor:pointer; transition:all .15s; white-space:nowrap; margin-bottom:4px; display:flex; align-items:center; gap:5px; }
+  .back-btn:hover { color:var(--text); border-color:var(--muted); background:var(--bg); }
+  .download-btn { font-family:'DM Sans',sans-serif; font-size:12px; font-weight:500; padding:7px 14px; border-radius:8px; cursor:pointer; border:1px solid var(--border); background:var(--surface); color:var(--muted); transition:all .15s; display:flex; align-items:center; gap:6px; white-space:nowrap; }
+  .download-btn:hover { border-color:var(--muted); color:var(--text); }
 
-  .nav-item {
-    display: flex; align-items: center; gap: 10px;
-    padding: 9px 1.5rem; font-size: 13.5px; color: var(--muted);
-    cursor: pointer; transition: all 0.15s; border-left: 2px solid transparent;
-    text-decoration: none; font-weight: 400;
-  }
-  .nav-item:hover { color: var(--text); background: var(--bg); }
-  .nav-item.active { color: var(--text); font-weight: 500; border-left-color: var(--text); background: var(--bg); }
+  /* ── STATS ── */
+  .stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:2rem; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem 1.25rem; transition:background .2s,border-color .2s; }
+  .stat-card .val { font-family:'DM Serif Display',serif; font-size:28px; letter-spacing:-.02em; line-height:1; }
+  .stat-card .lbl { font-size:11px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:.06em; font-weight:500; }
 
-  .nav-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .nav-count { margin-left: auto; font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); background: var(--bg); padding: 1px 6px; border-radius: 99px; }
+  /* ── SESSION FORM ── */
+  .form-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.5rem; margin-bottom:2rem; transition:background .2s,border-color .2s; }
+  .form-card-title { font-size:13px; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:1.25rem; }
 
-  .sidebar-footer { margin-top: auto; padding: 1.25rem 1.5rem; border-top: 1px solid var(--border-light); }
-  .sidebar-stats-label { font-size: 10px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.75rem; }
-  .sidebar-stat { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
-  .sidebar-stat span:first-child { color: var(--muted); }
-  .sidebar-stat span:last-child { font-family: 'DM Mono', monospace; font-weight: 500; }
+  .form-grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:12px; }
+  .form-grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+  .form-full { margin-bottom:12px; }
+  .field { display:flex; flex-direction:column; gap:5px; }
+  .field label { font-size:11px; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; }
+  .field input, .field select, .field textarea { font-family:'DM Sans',sans-serif; font-size:13.5px; padding:9px 11px; border:1px solid var(--border); border-radius:8px; background:var(--bg); color:var(--text); transition:border-color .15s,background .2s; outline:none; width:100%; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color:var(--text); background:var(--surface); }
+  .field textarea { resize:vertical; line-height:1.6; }
+  .field select option { background:var(--surface); color:var(--text); }
 
-  .theme-toggle { display: flex; align-items: center; justify-content: space-between; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-light); }
-  .theme-label { font-size: 12px; color: var(--muted); }
-  .toggle-pill { width: 36px; height: 20px; background: var(--border); border-radius: 99px; cursor: pointer; position: relative; transition: background 0.2s; border: none; flex-shrink: 0; }
-  .toggle-pill::after { content: ''; width: 14px; height: 14px; background: var(--surface); border-radius: 50%; position: absolute; top: 3px; left: 3px; transition: transform 0.2s, background 0.2s; box-shadow: 0 1px 3px rgba(0,0,0,0.25); }
-  [data-theme="dark"] .toggle-pill { background: #5a5a56; }
-  [data-theme="dark"] .toggle-pill::after { transform: translateX(16px); }
+  /* questions list inside form */
+  .questions-in-form { margin-bottom:14px; }
+  .qif-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .qif-label { font-size:11px; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; }
+  .qif-count { font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); }
 
-  /* MAIN */
-  .main { margin-left: 225px; flex: 1; padding: 2.5rem 3rem; max-width: 920px; }
+  .qif-item { background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:1rem 1.1rem; margin-bottom:8px; position:relative; }
+  .qif-item-header { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .qif-item-num { font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); flex-shrink:0; }
+  .qif-item-remove { margin-left:auto; background:none; border:none; font-size:16px; color:var(--muted); cursor:pointer; padding:0 2px; line-height:1; transition:color .15s; }
+  .qif-item-remove:hover { color:#b5451b; }
 
-  .page { display: none; }
-  .page.active { display: block; animation: fadeIn 0.2s ease; }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+  .add-q-btn { display:flex; align-items:center; gap:7px; width:100%; padding:9px 12px; border:1px dashed var(--border); border-radius:8px; background:transparent; color:var(--muted); font-family:'DM Sans',sans-serif; font-size:13px; cursor:pointer; transition:all .15s; margin-bottom:14px; }
+  .add-q-btn:hover { border-color:var(--muted); color:var(--text); background:var(--bg); }
 
-  /* PAGE HEADER */
-  .page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); gap: 12px; flex-wrap: wrap; }
-  .page-header-left { display: flex; align-items: flex-end; gap: 14px; }
-  .page-title-group {}
-  .page-eyebrow { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 4px; }
-  .page-title { font-family: 'DM Serif Display', serif; font-size: 30px; letter-spacing: -0.02em; line-height: 1.1; }
-  .page-header-actions { display: flex; gap: 8px; align-items: center; padding-bottom: 4px; flex-wrap: wrap; }
+  .form-divider { height:1px; background:var(--border-light); margin:16px 0; }
 
-  .back-btn {
-    font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
-    color: var(--muted); background: none; border: 1px solid var(--border);
-    border-radius: 8px; padding: 6px 12px; cursor: pointer; transition: all 0.15s;
-    white-space: nowrap; margin-bottom: 4px; display: flex; align-items: center; gap: 5px;
-  }
-  .back-btn:hover { color: var(--text); border-color: var(--muted); background: var(--bg); }
+  .form-actions { display:flex; justify-content:flex-end; gap:8px; }
+  .btn { font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500; padding:8px 18px; border-radius:8px; cursor:pointer; transition:all .15s; border:1px solid var(--border); background:transparent; color:var(--muted); }
+  .btn:hover { background:var(--bg); color:var(--text); }
+  .btn-primary { background:var(--text); color:var(--bg); border-color:var(--text); }
+  .btn-primary:hover { opacity:.85; color:var(--bg); }
 
-  .download-btn {
-    font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
-    padding: 7px 14px; border-radius: 8px; cursor: pointer;
-    border: 1px solid var(--border); background: var(--surface); color: var(--muted);
-    transition: all 0.15s; display: flex; align-items: center; gap: 6px; white-space: nowrap;
-  }
-  .download-btn:hover { border-color: var(--muted); color: var(--text); }
+  /* ── FILTER ── */
+  .filter-bar { display:flex; gap:6px; margin-bottom:1.25rem; flex-wrap:wrap; align-items:center; }
+  .filter-tag { font-size:12px; font-weight:500; padding:5px 13px; border-radius:99px; border:1px solid var(--border); background:transparent; color:var(--muted); cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .15s; }
+  .filter-tag:hover { border-color:var(--text); color:var(--text); }
+  .filter-tag.active { background:var(--text); color:var(--bg); border-color:var(--text); }
+  .filter-count { margin-left:auto; font-size:12px; color:var(--muted); font-family:'DM Mono',monospace; }
 
-  /* STATS */
-  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 2rem; }
-  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; transition: background 0.2s, border-color 0.2s; }
-  .stat-card .val { font-family: 'DM Serif Display', serif; font-size: 28px; letter-spacing: -0.02em; line-height: 1; }
-  .stat-card .lbl { font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
+  /* ── SESSION CARDS ── */
+  .session-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; margin-bottom:14px; transition:border-color .15s,background .2s; overflow:hidden; }
+  .session-card:hover { border-color:var(--muted); }
 
-  /* FORM */
-  .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; transition: background 0.2s, border-color 0.2s; }
-  .form-card-title { font-size: 13px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 1.25rem; }
-  .form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-  .form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-  .form-full { margin-bottom: 12px; }
-  .field { display: flex; flex-direction: column; gap: 5px; }
-  .field label { font-size: 11px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
-  .field input, .field select, .field textarea {
-    font-family: 'DM Sans', sans-serif; font-size: 13.5px; padding: 9px 11px;
-    border: 1px solid var(--border); border-radius: 8px; background: var(--bg);
-    color: var(--text); transition: border-color 0.15s, background 0.2s; outline: none; width: 100%;
-  }
-  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--text); background: var(--surface); }
-  .field textarea { resize: vertical; line-height: 1.6; }
-  .field select option { background: var(--surface); color: var(--text); }
-  .form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+  .session-header { display:flex; align-items:center; gap:12px; padding:1rem 1.5rem; cursor:pointer; user-select:none; }
+  .session-toggle { font-size:12px; color:var(--muted); flex-shrink:0; transition:transform .2s; }
+  .session-card.open .session-toggle { transform:rotate(90deg); }
+  .session-meta { flex:1; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .session-paper { font-weight:500; font-size:14px; }
+  .session-date { font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); }
+  .session-qcount { font-family:'DM Mono',monospace; font-size:11px; background:var(--bg); color:var(--muted); padding:2px 8px; border-radius:99px; border:1px solid var(--border); }
+  .session-reviewed-badge { font-size:11px; font-weight:500; padding:2px 8px; border-radius:99px; background:#edf7f1; color:#2e7d52; }
+  [data-theme="dark"] .session-reviewed-badge { background:#0d1f17; color:#5ecb8a; }
 
-  .btn { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; padding: 8px 18px; border-radius: 8px; cursor: pointer; transition: all 0.15s; border: 1px solid var(--border); background: transparent; color: var(--muted); }
-  .btn:hover { background: var(--bg); color: var(--text); }
-  .btn-primary { background: var(--text); color: var(--bg); border-color: var(--text); }
-  .btn-primary:hover { opacity: 0.85; color: var(--bg); }
+  .session-header-actions { display:flex; gap:6px; flex-shrink:0; }
+  .session-action-btn { background:none; border:1px solid var(--border); border-radius:7px; padding:4px 10px; font-size:11px; font-family:'DM Sans',sans-serif; font-weight:500; color:var(--muted); cursor:pointer; transition:all .15s; white-space:nowrap; }
+  .session-action-btn:hover { color:var(--text); border-color:var(--muted); }
+  .session-action-btn.danger:hover { color:#b5451b; border-color:#b5451b; }
 
-  /* FILTER */
-  .filter-bar { display: flex; gap: 6px; margin-bottom: 1.25rem; flex-wrap: wrap; align-items: center; }
-  .filter-tag { font-size: 12px; font-weight: 500; padding: 5px 13px; border-radius: 99px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
-  .filter-tag:hover { border-color: var(--text); color: var(--text); }
-  .filter-tag.active { background: var(--text); color: var(--bg); border-color: var(--text); }
-  .filter-count { margin-left: auto; font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .session-body { border-top:1px solid var(--border-light); padding:0; display:none; }
+  .session-card.open .session-body { display:block; }
 
-  /* ENTRIES */
-  .entry-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; margin-bottom: 10px; transition: border-color 0.15s, background 0.2s; }
-  .entry-card:hover { border-color: var(--muted); }
-  .entry-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
-  .entry-meta { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-  .entry-idx { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); }
-  .tag { font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 99px; }
-  .tag-easy   { background: #edf7f1; color: #2e7d52; }
-  .tag-medium { background: #fdf7e8; color: #b58c1a; }
-  .tag-hard   { background: #fdf0ec; color: #b5451b; }
-  .tag-topic  { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
-  .tag-marks  { background: var(--bg); color: var(--muted); font-family: 'DM Mono', monospace; border: 1px solid var(--border); }
-  [data-theme="dark"] .tag-easy   { background: #0d1f17; color: #5ecb8a; }
-  [data-theme="dark"] .tag-medium { background: #251e08; color: #d4aa4a; }
-  [data-theme="dark"] .tag-hard   { background: #271208; color: #e07a54; }
-  .entry-date { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
-  .entry-delete { background: none; border: none; font-size: 17px; color: var(--muted); cursor: pointer; padding: 0 4px; line-height: 1; transition: color 0.15s; }
-  .entry-delete:hover { color: #b5451b; }
-  .entry-section-label { font-size: 10px; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin-bottom: 5px; }
-  .entry-question { font-size: 14px; line-height: 1.65; color: var(--text); margin-bottom: 14px; }
-  .entry-solution { font-size: 14px; line-height: 1.65; color: var(--text); background: var(--bg); border-radius: 8px; padding: 10px 13px; border-left: 3px solid var(--border); }
-  .entry-notes { font-size: 13px; color: var(--muted); font-style: italic; margin-top: 10px; line-height: 1.5; }
-  .entry-footer { margin-top: 12px; display: flex; align-items: center; gap: 8px; }
-  .entry-footer input[type=checkbox] { width: 14px; height: 14px; accent-color: #2e7d52; cursor: pointer; }
-  .entry-footer label { font-size: 12px; color: var(--muted); cursor: pointer; }
+  /* individual question rows inside a session */
+  .q-row { padding:1rem 1.5rem; border-bottom:1px solid var(--border-light); }
+  .q-row:last-child { border-bottom:none; }
+  .q-row-header { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .q-row-num { font-family:'DM Mono',monospace; font-size:11px; color:var(--muted); }
 
-  .empty { text-align: center; padding: 3rem 1rem; color: var(--muted); font-size: 14px; border: 1px dashed var(--border); border-radius: 12px; }
+  .tag { font-size:11px; font-weight:500; padding:3px 9px; border-radius:99px; }
+  .tag-easy   { background:#edf7f1; color:#2e7d52; }
+  .tag-medium { background:#fdf7e8; color:#b58c1a; }
+  .tag-hard   { background:#fdf0ec; color:#b5451b; }
+  .tag-topic  { background:var(--bg); color:var(--muted); border:1px solid var(--border); }
+  .tag-marks  { background:var(--bg); color:var(--muted); font-family:'DM Mono',monospace; border:1px solid var(--border); }
+  [data-theme="dark"] .tag-easy   { background:#0d1f17; color:#5ecb8a; }
+  [data-theme="dark"] .tag-medium { background:#251e08; color:#d4aa4a; }
+  [data-theme="dark"] .tag-hard   { background:#271208; color:#e07a54; }
 
-  /* OVERVIEW */
-  .overview-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-bottom: 2rem; }
-  .subject-overview-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem 1.5rem; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 14px; }
-  .subject-overview-card:hover { border-color: var(--muted); transform: translateY(-1px); }
-  .subject-dot { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
-  .subject-overview-info { flex: 1; }
-  .subject-overview-name { font-weight: 500; font-size: 15px; margin-bottom: 2px; }
-  .subject-overview-board { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
-  .subject-overview-count { font-family: 'DM Serif Display', serif; font-size: 26px; color: var(--muted); }
+  .q-row-actions { margin-left:auto; display:flex; gap:5px; }
+  .q-delete-btn { background:none; border:none; font-size:16px; color:var(--muted); cursor:pointer; padding:0 3px; line-height:1; transition:color .15s; }
+  .q-delete-btn:hover { color:#b5451b; }
 
-  @media (max-width: 768px) {
-    .sidebar { display: none; }
-    .main { margin-left: 0; padding: 1.5rem; }
-    .form-grid-3, .form-grid-2 { grid-template-columns: 1fr; }
-    .overview-grid { grid-template-columns: 1fr; }
-    .stats-row { grid-template-columns: 1fr 1fr; }
+  .q-section-label { font-size:10px; font-weight:500; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin-bottom:5px; }
+  .q-text { font-size:14px; line-height:1.65; color:var(--text); margin-bottom:12px; }
+  .q-solution { font-size:14px; line-height:1.65; color:var(--text); background:var(--bg); border-radius:8px; padding:10px 13px; border-left:3px solid var(--border); }
+  .q-notes { font-size:13px; color:var(--muted); font-style:italic; margin-top:10px; line-height:1.5; }
+  .q-footer { margin-top:10px; display:flex; align-items:center; gap:8px; }
+  .q-footer input[type=checkbox] { width:14px; height:14px; accent-color:#2e7d52; cursor:pointer; }
+  .q-footer label { font-size:12px; color:var(--muted); cursor:pointer; }
+
+  /* add question inline to existing session */
+  .add-inline-btn { display:flex; align-items:center; gap:7px; width:calc(100% - 3rem); margin:0.75rem 1.5rem; padding:8px 12px; border:1px dashed var(--border); border-radius:8px; background:transparent; color:var(--muted); font-family:'DM Sans',sans-serif; font-size:13px; cursor:pointer; transition:all .15s; }
+  .add-inline-btn:hover { border-color:var(--muted); color:var(--text); }
+
+  .inline-form { padding:1rem 1.5rem; border-top:1px solid var(--border-light); background:var(--bg); display:none; }
+  .session-card.adding .inline-form { display:block; }
+  .inline-form-title { font-size:11px; font-weight:500; color:var(--muted); text-transform:uppercase; letter-spacing:.07em; margin-bottom:12px; }
+  .inline-form-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:10px; }
+
+  .empty { text-align:center; padding:3rem 1rem; color:var(--muted); font-size:14px; border:1px dashed var(--border); border-radius:12px; }
+
+  /* ── OVERVIEW ── */
+  .overview-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin-bottom:2rem; }
+  .subject-overview-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.25rem 1.5rem; cursor:pointer; transition:all .15s; display:flex; align-items:center; gap:14px; }
+  .subject-overview-card:hover { border-color:var(--muted); transform:translateY(-1px); }
+  .subject-dot { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
+  .subject-overview-info { flex:1; }
+  .subject-overview-name { font-weight:500; font-size:15px; margin-bottom:2px; }
+  .subject-overview-board { font-size:11px; color:var(--muted); font-family:'DM Mono',monospace; }
+  .subject-overview-count { font-family:'DM Serif Display',serif; font-size:26px; color:var(--muted); }
+
+  @media(max-width:768px){
+    .sidebar{display:none;}
+    .main{margin-left:0;padding:1.5rem;}
+    .form-grid-3,.form-grid-2{grid-template-columns:1fr;}
+    .overview-grid{grid-template-columns:1fr;}
+    .stats-row{grid-template-columns:1fr 1fr;}
   }
 </style>
 </head>
 <body>
 <div class="site-wrapper">
 
+  <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="sidebar-brand">
       <span class="name">Yagoub's<br>Mistake Log</span>
       <span class="subtitle">IGCSE · CIE</span>
     </div>
-
     <div class="sidebar-section-label">Overview</div>
-    <a class="nav-item active" data-page="overview" onclick="showPage('overview',this)">
-      <span style="font-size:13px;">◎</span> All subjects
-    </a>
-
-    <div class="sidebar-section-label" style="margin-top:1.25rem;">Subjects</div>
-    <a class="nav-item" data-page="maths"      onclick="showPage('maths',this)">      <span class="nav-dot" style="background:var(--math);"></span> Mathematics      <span class="nav-count" id="count-maths">0</span></a>
-    <a class="nav-item" data-page="biology"    onclick="showPage('biology',this)">    <span class="nav-dot" style="background:var(--bio);"></span>  Biology          <span class="nav-count" id="count-biology">0</span></a>
-    <a class="nav-item" data-page="chemistry"  onclick="showPage('chemistry',this)">  <span class="nav-dot" style="background:var(--chem);"></span> Chemistry        <span class="nav-count" id="count-chemistry">0</span></a>
-    <a class="nav-item" data-page="physics"    onclick="showPage('physics',this)">    <span class="nav-dot" style="background:var(--phys);"></span> Physics          <span class="nav-count" id="count-physics">0</span></a>
-    <a class="nav-item" data-page="accounting" onclick="showPage('accounting',this)"> <span class="nav-dot" style="background:var(--acc);"></span>  Accounting       <span class="nav-count" id="count-accounting">0</span></a>
-    <a class="nav-item" data-page="cs"         onclick="showPage('cs',this)">         <span class="nav-dot" style="background:var(--cs);"></span>  Computer Science <span class="nav-count" id="count-cs">0</span></a>
-
+    <a class="nav-item active" data-page="overview" onclick="showPage('overview',this)"><span style="font-size:13px">◎</span> All subjects</a>
+    <div class="sidebar-section-label" style="margin-top:1.25rem">Subjects</div>
+    <a class="nav-item" data-page="maths"      onclick="showPage('maths',this)">      <span class="nav-dot" style="background:var(--math)"></span> Mathematics      <span class="nav-count" id="count-maths">0</span></a>
+    <a class="nav-item" data-page="biology"    onclick="showPage('biology',this)">    <span class="nav-dot" style="background:var(--bio)"></span>  Biology          <span class="nav-count" id="count-biology">0</span></a>
+    <a class="nav-item" data-page="chemistry"  onclick="showPage('chemistry',this)">  <span class="nav-dot" style="background:var(--chem)"></span> Chemistry        <span class="nav-count" id="count-chemistry">0</span></a>
+    <a class="nav-item" data-page="physics"    onclick="showPage('physics',this)">    <span class="nav-dot" style="background:var(--phys)"></span> Physics          <span class="nav-count" id="count-physics">0</span></a>
+    <a class="nav-item" data-page="accounting" onclick="showPage('accounting',this)"> <span class="nav-dot" style="background:var(--acc)"></span>  Accounting       <span class="nav-count" id="count-accounting">0</span></a>
+    <a class="nav-item" data-page="cs"         onclick="showPage('cs',this)">         <span class="nav-dot" style="background:var(--cs)"></span>  Computer Science <span class="nav-count" id="count-cs">0</span></a>
     <div class="sidebar-footer">
       <div class="sidebar-stats-label">Total progress</div>
-      <div class="sidebar-stat"><span>Mistakes logged</span><span id="global-total">0</span></div>
+      <div class="sidebar-stat"><span>Papers logged</span><span id="global-sessions">0</span></div>
+      <div class="sidebar-stat"><span>Questions logged</span><span id="global-total">0</span></div>
       <div class="sidebar-stat"><span>Reviewed</span><span id="global-reviewed">0</span></div>
-      <div class="sidebar-stat"><span>Pending</span><span id="global-pending">0</span></div>
       <div class="theme-toggle">
         <span class="theme-label" id="theme-label">Light mode</span>
         <button class="toggle-pill" onclick="toggleTheme()" aria-label="Toggle dark mode"></button>
@@ -237,9 +226,10 @@
     </div>
   </aside>
 
+  <!-- MAIN -->
   <main class="main">
 
-    <!-- OVERVIEW -->
+    <!-- OVERVIEW PAGE -->
     <div class="page active" id="page-overview">
       <div class="page-header">
         <div class="page-title-group">
@@ -248,38 +238,38 @@
         </div>
       </div>
       <div class="stats-row">
-        <div class="stat-card"><div class="val" id="ov-total">0</div><div class="lbl">Total mistakes</div></div>
-        <div class="stat-card"><div class="val" id="ov-reviewed">0</div><div class="lbl">Reviewed</div></div>
-        <div class="stat-card"><div class="val" id="ov-pending">0</div><div class="lbl">Still to review</div></div>
+        <div class="stat-card"><div class="val" id="ov-sessions">0</div><div class="lbl">Papers</div></div>
+        <div class="stat-card"><div class="val" id="ov-total">0</div><div class="lbl">Questions</div></div>
+        <div class="stat-card"><div class="val" id="ov-pending">0</div><div class="lbl">To review</div></div>
       </div>
       <div class="overview-grid">
         <div class="subject-overview-card" onclick="showPage('maths',document.querySelector('[data-page=maths]'))">
-          <div class="subject-dot" style="background:var(--math-bg);">➕</div>
+          <div class="subject-dot" style="background:var(--math-bg)">➕</div>
           <div class="subject-overview-info"><div class="subject-overview-name">Mathematics</div><div class="subject-overview-board">0580 · Core &amp; Extended</div></div>
           <div class="subject-overview-count" id="ov-count-maths">0</div>
         </div>
         <div class="subject-overview-card" onclick="showPage('biology',document.querySelector('[data-page=biology]'))">
-          <div class="subject-dot" style="background:var(--bio-bg);">🌿</div>
+          <div class="subject-dot" style="background:var(--bio-bg)">🌿</div>
           <div class="subject-overview-info"><div class="subject-overview-name">Biology</div><div class="subject-overview-board">0610 · Core &amp; Extended</div></div>
           <div class="subject-overview-count" id="ov-count-biology">0</div>
         </div>
         <div class="subject-overview-card" onclick="showPage('chemistry',document.querySelector('[data-page=chemistry]'))">
-          <div class="subject-dot" style="background:var(--chem-bg);">⚗️</div>
+          <div class="subject-dot" style="background:var(--chem-bg)">⚗️</div>
           <div class="subject-overview-info"><div class="subject-overview-name">Chemistry</div><div class="subject-overview-board">0620 · Core &amp; Extended</div></div>
           <div class="subject-overview-count" id="ov-count-chemistry">0</div>
         </div>
         <div class="subject-overview-card" onclick="showPage('physics',document.querySelector('[data-page=physics]'))">
-          <div class="subject-dot" style="background:var(--phys-bg);">⚡</div>
+          <div class="subject-dot" style="background:var(--phys-bg)">⚡</div>
           <div class="subject-overview-info"><div class="subject-overview-name">Physics</div><div class="subject-overview-board">0625 · Core &amp; Extended</div></div>
           <div class="subject-overview-count" id="ov-count-physics">0</div>
         </div>
         <div class="subject-overview-card" onclick="showPage('accounting',document.querySelector('[data-page=accounting]'))">
-          <div class="subject-dot" style="background:var(--acc-bg);">📒</div>
+          <div class="subject-dot" style="background:var(--acc-bg)">📒</div>
           <div class="subject-overview-info"><div class="subject-overview-name">Accounting</div><div class="subject-overview-board">0452</div></div>
           <div class="subject-overview-count" id="ov-count-accounting">0</div>
         </div>
         <div class="subject-overview-card" onclick="showPage('cs',document.querySelector('[data-page=cs]'))">
-          <div class="subject-dot" style="background:var(--cs-bg);">💻</div>
+          <div class="subject-dot" style="background:var(--cs-bg)">💻</div>
           <div class="subject-overview-info"><div class="subject-overview-name">Computer Science</div><div class="subject-overview-board">0478</div></div>
           <div class="subject-overview-count" id="ov-count-cs">0</div>
         </div>
@@ -291,39 +281,46 @@
 </div>
 
 <script>
-const SUBJECTS = [
-  { id:'maths',      name:'Mathematics',      code:'0580' },
-  { id:'biology',    name:'Biology',           code:'0610' },
-  { id:'chemistry',  name:'Chemistry',         code:'0620' },
-  { id:'physics',    name:'Physics',           code:'0625' },
-  { id:'accounting', name:'Accounting',        code:'0452' },
-  { id:'cs',         name:'Computer Science',  code:'0478' },
+const SUBJECTS=[
+  {id:'maths',name:'Mathematics',code:'0580'},
+  {id:'biology',name:'Biology',code:'0610'},
+  {id:'chemistry',name:'Chemistry',code:'0620'},
+  {id:'physics',name:'Physics',code:'0625'},
+  {id:'accounting',name:'Accounting',code:'0452'},
+  {id:'cs',name:'Computer Science',code:'0478'},
 ];
+const DIFF_LABEL={easy:'Silly mistake',medium:'Concept gap',hard:"Didn't know it"};
+const DIFF_CLASS={easy:'tag-easy',medium:'tag-medium',hard:'tag-hard'};
 
-const DIFF_LABEL = { easy:'Silly mistake', medium:'Concept gap', hard:"Didn't know it" };
-const DIFF_CLASS = { easy:'tag-easy', medium:'tag-medium', hard:'tag-hard' };
+// DATA SHAPE:
+// data[sid] = [ { id, paper, date, questions:[ {id,qnum,topic,diff,marks,q,sol,notes,reviewed} ] } ]
 
-let data = loadData();
-let filters = {};
-SUBJECTS.forEach(s => { if(!data[s.id]) data[s.id]=[]; filters[s.id]='all'; });
+let data=loadData();
+let filters={};
+SUBJECTS.forEach(s=>{if(!data[s.id])data[s.id]=[];filters[s.id]='all';});
 
-function loadData() { try { return JSON.parse(localStorage.getItem('yagoub-igcse')||'{}'); } catch { return {}; } }
-function saveData() { localStorage.setItem('yagoub-igcse', JSON.stringify(data)); }
+function loadData(){try{return JSON.parse(localStorage.getItem('yagoub-igcse2')||'{}');}catch{return {};}}
+function saveData(){localStorage.setItem('yagoub-igcse2',JSON.stringify(data));}
 
-// DARK MODE
-let isDark = localStorage.getItem('yagoub-theme') === 'dark';
-function applyTheme() {
-  document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
-  const lbl = document.getElementById('theme-label');
-  if (lbl) lbl.textContent = isDark ? 'Dark mode' : 'Light mode';
-  localStorage.setItem('yagoub-theme', isDark ? 'dark' : 'light');
-}
-function toggleTheme() { isDark = !isDark; applyTheme(); }
+// dark mode
+let isDark=localStorage.getItem('yagoub-theme')==='dark';
+function applyTheme(){document.documentElement.setAttribute('data-theme',isDark?'dark':'light');const l=document.getElementById('theme-label');if(l)l.textContent=isDark?'Dark mode':'Light mode';localStorage.setItem('yagoub-theme',isDark?'dark':'light');}
+function toggleTheme(){isDark=!isDark;applyTheme();}
 applyTheme();
 
-// BUILD PAGES
-function buildPages() {
-  document.getElementById('subject-pages').innerHTML = SUBJECTS.map(s => `
+// NAV
+function showPage(id,el){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  if(el)el.classList.add('active');
+  window.scrollTo(0,0);
+  renderAll();
+}
+
+// BUILD SUBJECT PAGES
+function buildPages(){
+  document.getElementById('subject-pages').innerHTML=SUBJECTS.map(s=>`
     <div class="page" id="page-${s.id}">
       <div class="page-header">
         <div class="page-header-left">
@@ -340,36 +337,30 @@ function buildPages() {
       </div>
 
       <div class="stats-row">
-        <div class="stat-card"><div class="val" id="stat-total-${s.id}">0</div><div class="lbl">Mistakes</div></div>
-        <div class="stat-card"><div class="val" id="stat-reviewed-${s.id}">0</div><div class="lbl">Reviewed</div></div>
+        <div class="stat-card"><div class="val" id="stat-sessions-${s.id}">0</div><div class="lbl">Papers</div></div>
+        <div class="stat-card"><div class="val" id="stat-total-${s.id}">0</div><div class="lbl">Questions</div></div>
         <div class="stat-card"><div class="val" id="stat-pending-${s.id}">0</div><div class="lbl">To review</div></div>
       </div>
 
-      <div class="form-card">
-        <div class="form-card-title">Log a mistake</div>
+      <!-- NEW SESSION FORM -->
+      <div class="form-card" id="new-session-form-${s.id}">
+        <div class="form-card-title">Log mistakes from a paper</div>
+
         <div class="form-grid-3">
-          <div class="field"><label>Paper / Year</label><input type="text" id="f-paper-${s.id}" placeholder="e.g. 2023 P2" /></div>
-          <div class="field"><label>Question no.</label><input type="text" id="f-qnum-${s.id}" placeholder="e.g. Q4b" /></div>
-          <div class="field"><label>Topic</label><input type="text" id="f-topic-${s.id}" placeholder="e.g. Algebra" /></div>
+          <div class="field"><label>Paper / Year</label><input type="text" id="f-paper-${s.id}" placeholder="e.g. 2023 Paper 2" /></div>
+          <div class="field"><label>Variant</label><input type="text" id="f-variant-${s.id}" placeholder="e.g. V1, V2, V3" /></div>
+          <div class="field"><label>Date sat</label><input type="date" id="f-date-${s.id}" /></div>
         </div>
-        <div class="form-grid-2">
-          <div class="field">
-            <label>Difficulty</label>
-            <select id="f-diff-${s.id}">
-              <option value="">— select —</option>
-              <option value="easy">Silly mistake</option>
-              <option value="medium">Concept gap</option>
-              <option value="hard">Didn't know it</option>
-            </select>
-          </div>
-          <div class="field"><label>Marks</label><input type="number" id="f-marks-${s.id}" placeholder="e.g. 3" min="1" max="20" /></div>
-        </div>
-        <div class="form-full"><div class="field"><label>Question</label><textarea id="f-q-${s.id}" rows="3" placeholder="Describe what the question was asking..."></textarea></div></div>
-        <div class="form-full"><div class="field"><label>Correct solution / what to remember</label><textarea id="f-sol-${s.id}" rows="4" placeholder="Write the correct method, key steps, or formula..."></textarea></div></div>
-        <div class="form-full"><div class="field"><label>Notes (optional)</label><textarea id="f-notes-${s.id}" rows="2" placeholder="Why did you get it wrong? What will you do differently?"></textarea></div></div>
+
+        <div class="form-divider"></div>
+
+        <div class="questions-in-form" id="qif-${s.id}"></div>
+
+        <button class="add-q-btn" onclick="addQToForm('${s.id}')">+ Add a question</button>
+
         <div class="form-actions">
-          <button class="btn" onclick="clearForm('${s.id}')">Clear</button>
-          <button class="btn btn-primary" onclick="addEntry('${s.id}')">Add to log</button>
+          <button class="btn" onclick="clearSessionForm('${s.id}')">Clear all</button>
+          <button class="btn btn-primary" onclick="saveSession('${s.id}')">Save session</button>
         </div>
       </div>
 
@@ -382,182 +373,412 @@ function buildPages() {
         <span class="filter-count" id="filter-count-${s.id}"></span>
       </div>
 
-      <div class="entry-list" id="list-${s.id}"></div>
+      <div id="list-${s.id}"></div>
     </div>
   `).join('');
+
+  // init question forms
+  SUBJECTS.forEach(s=>{ formQs[s.id]=[]; renderQIForm(s.id); });
 }
 
-// NAVIGATION
-function showPage(id, el) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.getElementById('page-'+id).classList.add('active');
-  if (el) el.classList.add('active');
-  window.scrollTo(0,0);
-  renderAll();
+// ── FORM QUESTION BUILDER ──
+const formQs={}; // temporary question list while building a new session
+
+function qFormHtml(sid,idx,q){
+  return `<div class="qif-item" id="qif-item-${sid}-${idx}">
+    <div class="qif-item-header">
+      <span class="qif-item-num">Q${idx+1}</span>
+      <button class="qif-item-remove" onclick="removeQFromForm('${sid}',${idx})" title="Remove">×</button>
+    </div>
+    <div class="form-grid-3" style="margin-bottom:10px">
+      <div class="field"><label>Question no.</label><input type="text" id="qif-qnum-${sid}-${idx}" placeholder="e.g. Q4b" value="${q.qnum||''}" /></div>
+      <div class="field"><label>Topic</label><input type="text" id="qif-topic-${sid}-${idx}" placeholder="e.g. Algebra" value="${q.topic||''}" /></div>
+      <div class="field"><label>Marks</label><input type="number" id="qif-marks-${sid}-${idx}" placeholder="e.g. 3" min="1" max="20" value="${q.marks||''}" /></div>
+    </div>
+    <div class="form-full" style="margin-bottom:10px">
+      <div class="field">
+        <label>Difficulty</label>
+        <select id="qif-diff-${sid}-${idx}">
+          <option value="">— select —</option>
+          <option value="easy" ${q.diff==='easy'?'selected':''}>Silly mistake</option>
+          <option value="medium" ${q.diff==='medium'?'selected':''}>Concept gap</option>
+          <option value="hard" ${q.diff==='hard'?'selected':''}>Didn't know it</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-full" style="margin-bottom:10px">
+      <div class="field"><label>Question</label><textarea id="qif-q-${sid}-${idx}" rows="2" placeholder="Describe what the question was asking...">${q.q||''}</textarea></div>
+    </div>
+    <div class="form-full" style="margin-bottom:10px">
+      <div class="field"><label>Correct solution</label><textarea id="qif-sol-${sid}-${idx}" rows="3" placeholder="Write the correct method, key steps, or formula...">${q.sol||''}</textarea></div>
+    </div>
+    <div class="form-full" style="margin-bottom:0">
+      <div class="field"><label>Notes (optional)</label><textarea id="qif-notes-${sid}-${idx}" rows="1" placeholder="Why did you get it wrong?">${q.notes||''}</textarea></div>
+    </div>
+  </div>`;
 }
 
-// ADD ENTRY
-function addEntry(sid) {
-  const q   = document.getElementById('f-q-'+sid).value.trim();
-  const sol = document.getElementById('f-sol-'+sid).value.trim();
-  if (!q || !sol) { alert('Please fill in the question and solution.'); return; }
-  data[sid].unshift({
-    id: Date.now(),
-    paper: document.getElementById('f-paper-'+sid).value.trim(),
-    qnum:  document.getElementById('f-qnum-'+sid).value.trim(),
-    topic: document.getElementById('f-topic-'+sid).value.trim(),
-    diff:  document.getElementById('f-diff-'+sid).value,
-    marks: document.getElementById('f-marks-'+sid).value,
-    q, sol,
-    notes: document.getElementById('f-notes-'+sid).value.trim(),
-    date:  new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),
-    reviewed: false,
+function renderQIForm(sid){
+  const container=document.getElementById('qif-'+sid);
+  if(!container)return;
+  const qs=formQs[sid]||[];
+  if(!qs.length){
+    container.innerHTML=`<div style="font-size:13px;color:var(--muted);margin-bottom:4px">No questions added yet — click the button below to add your first question.</div>`;
+    return;
+  }
+  container.innerHTML=`<div class="qif-header"><span class="qif-label">Questions</span><span class="qif-count">${qs.length} added</span></div>`
+    + qs.map((q,i)=>qFormHtml(sid,i,q)).join('');
+}
+
+function snapshotFormQs(sid){
+  const qs=formQs[sid]||[];
+  qs.forEach((_,i)=>{
+    qs[i]={
+      qnum: (document.getElementById(`qif-qnum-${sid}-${i}`)||{}).value||'',
+      topic:(document.getElementById(`qif-topic-${sid}-${i}`)||{}).value||'',
+      marks:(document.getElementById(`qif-marks-${sid}-${i}`)||{}).value||'',
+      diff: (document.getElementById(`qif-diff-${sid}-${i}`)||{}).value||'',
+      q:    (document.getElementById(`qif-q-${sid}-${i}`)||{}).value||'',
+      sol:  (document.getElementById(`qif-sol-${sid}-${i}`)||{}).value||'',
+      notes:(document.getElementById(`qif-notes-${sid}-${i}`)||{}).value||'',
+    };
   });
-  saveData(); clearForm(sid); renderSubject(sid); updateCounts();
 }
 
-function clearForm(sid) {
-  ['paper','qnum','topic','marks','q','sol','notes'].forEach(f => { const el=document.getElementById('f-'+f+'-'+sid); if(el) el.value=''; });
-  const d=document.getElementById('f-diff-'+sid); if(d) d.value='';
+function addQToForm(sid){
+  snapshotFormQs(sid);
+  formQs[sid].push({qnum:'',topic:'',marks:'',diff:'',q:'',sol:'',notes:''});
+  renderQIForm(sid);
+  // scroll to new q
+  setTimeout(()=>{
+    const items=document.querySelectorAll(`#qif-${sid} .qif-item`);
+    if(items.length) items[items.length-1].scrollIntoView({behavior:'smooth',block:'nearest'});
+  },50);
 }
 
-function deleteEntry(sid, id) {
-  if (!confirm('Delete this entry?')) return;
-  data[sid]=data[sid].filter(e=>e.id!==id);
-  saveData(); renderSubject(sid); updateCounts();
+function removeQFromForm(sid,idx){
+  snapshotFormQs(sid);
+  formQs[sid].splice(idx,1);
+  renderQIForm(sid);
 }
 
-function toggleReviewed(sid, id) {
-  const e=data[sid].find(e=>e.id===id);
-  if(e){ e.reviewed=!e.reviewed; saveData(); renderSubject(sid); updateCounts(); }
+function saveSession(sid){
+  snapshotFormQs(sid);
+  const paper=document.getElementById('f-paper-'+sid).value.trim();
+  const variant=document.getElementById('f-variant-'+sid).value.trim();
+  const dateVal=document.getElementById('f-date-'+sid).value;
+  const qs=formQs[sid]||[];
+
+  // validate at least one question with q+sol
+  const validQs=qs.filter(q=>q.q.trim()&&q.sol.trim());
+  if(!validQs.length){alert('Add at least one question with a question and solution filled in.');return;}
+
+  const paperLabel=[paper,variant].filter(Boolean).join(' · ');
+  const dateLabel=dateVal
+    ? new Date(dateVal+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
+    : new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+
+  const session={
+    id:Date.now(),
+    paper:paperLabel||'Untitled paper',
+    date:dateLabel,
+    questions:validQs.map(q=>({
+      id:Date.now()+Math.random(),
+      qnum:q.qnum,topic:q.topic,marks:q.marks,diff:q.diff,
+      q:q.q.trim(),sol:q.sol.trim(),notes:q.notes.trim(),
+      reviewed:false,
+    }))
+  };
+
+  data[sid].unshift(session);
+  saveData();
+  clearSessionForm(sid);
+  renderSubject(sid);
+  updateCounts();
 }
 
-function setFilter(sid, f, btn) {
+function clearSessionForm(sid){
+  ['f-paper-'+sid,'f-variant-'+sid,'f-date-'+sid].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  formQs[sid]=[];
+  renderQIForm(sid);
+}
+
+// ── DELETE SESSION ──
+function deleteSession(sid,sessId){
+  if(!confirm('Delete this entire paper session?'))return;
+  data[sid]=data[sid].filter(s=>s.id!==sessId);
+  saveData();renderSubject(sid);updateCounts();
+}
+
+// ── DELETE QUESTION ──
+function deleteQuestion(sid,sessId,qId){
+  if(!confirm('Delete this question?'))return;
+  const sess=data[sid].find(s=>s.id===sessId);
+  if(!sess)return;
+  sess.questions=sess.questions.filter(q=>q.id!==qId);
+  if(!sess.questions.length){ data[sid]=data[sid].filter(s=>s.id!==sessId); }
+  saveData();renderSubject(sid);updateCounts();
+}
+
+// ── TOGGLE REVIEWED ──
+function toggleReviewed(sid,sessId,qId){
+  const sess=data[sid].find(s=>s.id===sessId);
+  if(!sess)return;
+  const q=sess.questions.find(q=>q.id===qId);
+  if(q){q.reviewed=!q.reviewed;saveData();renderSubject(sid);updateCounts();}
+}
+
+// ── INLINE ADD QUESTION to existing session ──
+function toggleInlineForm(sid,sessId){
+  const card=document.getElementById(`sess-${sid}-${sessId}`);
+  if(!card)return;
+  card.classList.toggle('adding');
+  if(card.classList.contains('adding')){
+    card.classList.add('open');
+    setTimeout(()=>{
+      const f=card.querySelector('.inline-form');
+      if(f)f.scrollIntoView({behavior:'smooth',block:'nearest'});
+    },50);
+  }
+}
+
+function saveInlineQ(sid,sessId){
+  const card=document.getElementById(`sess-${sid}-${sessId}`);
+  const q=(card.querySelector('.il-q')||{}).value||'';
+  const sol=(card.querySelector('.il-sol')||{}).value||'';
+  if(!q.trim()||!sol.trim()){alert('Please fill in the question and solution.');return;}
+  const sess=data[sid].find(s=>s.id===sessId);
+  if(!sess)return;
+  sess.questions.push({
+    id:Date.now(),
+    qnum:(card.querySelector('.il-qnum')||{}).value||'',
+    topic:(card.querySelector('.il-topic')||{}).value||'',
+    marks:(card.querySelector('.il-marks')||{}).value||'',
+    diff:(card.querySelector('.il-diff')||{}).value||'',
+    q:q.trim(),sol:sol.trim(),
+    notes:(card.querySelector('.il-notes')||{}).value||'',
+    reviewed:false,
+  });
+  saveData();
+  card.classList.remove('adding');
+  renderSubject(sid);updateCounts();
+}
+
+function cancelInlineForm(sid,sessId){
+  const card=document.getElementById(`sess-${sid}-${sessId}`);
+  if(card)card.classList.remove('adding');
+}
+
+// ── FILTER ──
+function setFilter(sid,f,btn){
   filters[sid]=f;
   document.querySelectorAll(`#filter-bar-${sid} .filter-tag`).forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   renderSubject(sid);
 }
 
-// DOWNLOAD
-function downloadTxt(sid) {
-  const entries=data[sid]||[];
-  if(!entries.length){ alert('No mistakes logged yet for this subject.'); return; }
-  const subj=SUBJECTS.find(s=>s.id===sid);
-  const lines=[
-    `YAGOUB'S MISTAKE LOG — ${subj.name.toUpperCase()} (CIE IGCSE ${subj.code})`,
-    `Exported: ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}`,
-    `Total entries: ${entries.length}`,
-    `${'='.repeat(60)}`, ''
-  ];
-  entries.forEach((e,i) => {
-    lines.push(`MISTAKE #${i+1}`);
-    if(e.paper||e.qnum) lines.push(`Paper/Question: ${[e.paper,e.qnum].filter(Boolean).join(' · ')}`);
-    if(e.topic)  lines.push(`Topic: ${e.topic}`);
-    if(e.diff)   lines.push(`Difficulty: ${DIFF_LABEL[e.diff]}`);
-    if(e.marks)  lines.push(`Marks: ${e.marks}`);
-    lines.push(`Date: ${e.date}`, `Reviewed: ${e.reviewed?'Yes':'No'}`, '');
-    lines.push('QUESTION:', e.q, '');
-    lines.push('CORRECT SOLUTION:', e.sol);
-    if(e.notes) lines.push('', 'NOTES:', e.notes);
-    lines.push('', '-'.repeat(60), '');
-  });
-  triggerDownload(lines.join('\n'), `yagoub-${sid}-mistakes.txt`, 'text/plain');
-}
+// ── RENDER ──
+function renderSubject(sid){
+  const sessions=data[sid]||[];
 
-function downloadJson(sid) {
-  const entries=data[sid]||[];
-  if(!entries.length){ alert('No mistakes logged yet for this subject.'); return; }
-  const subj=SUBJECTS.find(s=>s.id===sid);
-  const payload={
-    student:'Yagoub', subject:subj.name, syllabus_code:subj.code, board:'CIE IGCSE',
-    exported:new Date().toISOString(), total_entries:entries.length,
-    entries:entries.map((e,i)=>({
-      number:i+1, date:e.date,
-      paper:e.paper||null, question_number:e.qnum||null, topic:e.topic||null,
-      difficulty:e.diff?DIFF_LABEL[e.diff]:null, marks:e.marks?parseInt(e.marks):null,
-      question:e.q, correct_solution:e.sol, notes:e.notes||null, reviewed:e.reviewed
-    }))
-  };
-  triggerDownload(JSON.stringify(payload,null,2), `yagoub-${sid}-mistakes.json`, 'application/json');
-}
+  // count questions respecting filter
+  const allQs=sessions.flatMap(s=>s.questions);
+  const totalQs=allQs.length;
+  const reviewedQs=allQs.filter(q=>q.reviewed).length;
 
-function triggerDownload(content, filename, type) {
-  const blob=new Blob([content],{type});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url; a.download=filename; a.click();
-  URL.revokeObjectURL(url);
-}
-
-// RENDER
-function renderSubject(sid) {
-  const entries=data[sid]||[];
-  const total=entries.length;
-  const reviewed=entries.filter(e=>e.reviewed).length;
   const el=id=>document.getElementById(id);
-  if(el('stat-total-'+sid)) el('stat-total-'+sid).textContent=total;
-  if(el('stat-reviewed-'+sid)) el('stat-reviewed-'+sid).textContent=reviewed;
-  if(el('stat-pending-'+sid)) el('stat-pending-'+sid).textContent=total-reviewed;
+  if(el('stat-sessions-'+sid)) el('stat-sessions-'+sid).textContent=sessions.length;
+  if(el('stat-total-'+sid))    el('stat-total-'+sid).textContent=totalQs;
+  if(el('stat-pending-'+sid))  el('stat-pending-'+sid).textContent=totalQs-reviewedQs;
 
-  let filtered=entries;
   const f=filters[sid];
-  if(f==='pending') filtered=entries.filter(e=>!e.reviewed);
-  else if(f!=='all') filtered=entries.filter(e=>e.diff===f);
 
+  // filter sessions: keep session if any question matches filter
+  function qMatches(q){
+    if(f==='all') return true;
+    if(f==='pending') return !q.reviewed;
+    return q.diff===f;
+  }
+
+  const filtered=sessions.map(sess=>({
+    ...sess,
+    questions:sess.questions.filter(qMatches)
+  })).filter(sess=>sess.questions.length>0);
+
+  const totalFiltered=filtered.reduce((a,s)=>a+s.questions.length,0);
   const fc=el('filter-count-'+sid);
-  if(fc) fc.textContent=filtered.length===total?total+' entries':filtered.length+' of '+total;
+  if(fc) fc.textContent=totalFiltered===totalQs?totalQs+' questions':totalFiltered+' of '+totalQs;
 
   const list=el('list-'+sid);
-  if(!list) return;
-  if(!filtered.length) {
-    list.innerHTML=`<div class="empty">${!total?'No mistakes logged yet — add your first one above.':'No entries match this filter.'}</div>`;
+  if(!list)return;
+
+  if(!sessions.length){
+    list.innerHTML=`<div class="empty">No mistakes logged yet — add your first paper above.</div>`;
+    return;
+  }
+  if(!filtered.length){
+    list.innerHTML=`<div class="empty">No entries match this filter.</div>`;
     return;
   }
 
-  list.innerHTML=filtered.map(e => {
-    const idx=entries.indexOf(e)+1;
-    return `<div class="entry-card">
-      <div class="entry-top">
-        <div class="entry-meta">
-          <span class="entry-idx">#${idx}</span>
-          ${e.diff?`<span class="tag ${DIFF_CLASS[e.diff]}">${DIFF_LABEL[e.diff]}</span>`:''}
-          ${e.topic?`<span class="tag tag-topic">${e.topic}</span>`:''}
-          ${e.marks?`<span class="tag tag-marks">${e.marks}m</span>`:''}
-          ${e.paper?`<span class="entry-date">${e.paper}${e.qnum?' · '+e.qnum:''}</span>`:''}
-          <span class="entry-date">${e.date}</span>
+  list.innerHTML=filtered.map(sess=>{
+    const allReviewed=sess.questions.every(q=>q.reviewed);
+    const reviewedCount=sess.questions.filter(q=>q.reviewed).length;
+
+    const qRows=sess.questions.map((q,qi)=>`
+      <div class="q-row">
+        <div class="q-row-header">
+          <span class="q-row-num">${q.qnum||('Q'+(qi+1))}</span>
+          ${q.diff?`<span class="tag ${DIFF_CLASS[q.diff]}">${DIFF_LABEL[q.diff]}</span>`:''}
+          ${q.topic?`<span class="tag tag-topic">${q.topic}</span>`:''}
+          ${q.marks?`<span class="tag tag-marks">${q.marks}m</span>`:''}
+          <div class="q-row-actions">
+            <button class="q-delete-btn" onclick="deleteQuestion('${sid}',${sess.id},${q.id})" title="Delete">×</button>
+          </div>
         </div>
-        <button class="entry-delete" onclick="deleteEntry('${sid}',${e.id})" title="Delete">×</button>
+        <div class="q-section-label">Question</div>
+        <div class="q-text">${q.q.replace(/\n/g,'<br>')}</div>
+        <div class="q-section-label">Correct solution</div>
+        <div class="q-solution">${q.sol.replace(/\n/g,'<br>')}</div>
+        ${q.notes?`<div class="q-notes">${q.notes.replace(/\n/g,'<br>')}</div>`:''}
+        <div class="q-footer">
+          <input type="checkbox" id="rev-${sid}-${sess.id}-${q.id}" ${q.reviewed?'checked':''} onchange="toggleReviewed('${sid}',${sess.id},${q.id})" />
+          <label for="rev-${sid}-${sess.id}-${q.id}">Mark as reviewed</label>
+        </div>
       </div>
-      <div class="entry-section-label">Question</div>
-      <div class="entry-question">${e.q.replace(/\n/g,'<br>')}</div>
-      <div class="entry-section-label">Correct solution</div>
-      <div class="entry-solution">${e.sol.replace(/\n/g,'<br>')}</div>
-      ${e.notes?`<div class="entry-notes">${e.notes.replace(/\n/g,'<br>')}</div>`:''}
-      <div class="entry-footer">
-        <input type="checkbox" id="rev-${sid}-${e.id}" ${e.reviewed?'checked':''} onchange="toggleReviewed('${sid}',${e.id})" />
-        <label for="rev-${sid}-${e.id}">Mark as reviewed</label>
+    `).join('');
+
+    return `<div class="session-card open" id="sess-${sid}-${sess.id}">
+      <div class="session-header" onclick="toggleSession('${sid}',${sess.id})">
+        <span class="session-toggle">▶</span>
+        <div class="session-meta">
+          <span class="session-paper">${sess.paper}</span>
+          <span class="session-date">${sess.date}</span>
+          <span class="session-qcount">${sess.questions.length} question${sess.questions.length!==1?'s':''}</span>
+          ${allReviewed?`<span class="session-reviewed-badge">All reviewed</span>`:reviewedCount>0?`<span class="session-qcount">${reviewedCount}/${sess.questions.length} reviewed</span>`:''}
+        </div>
+        <div class="session-header-actions" onclick="event.stopPropagation()">
+          <button class="session-action-btn" onclick="toggleInlineForm('${sid}',${sess.id})">+ Add question</button>
+          <button class="session-action-btn danger" onclick="deleteSession('${sid}',${sess.id})">Delete</button>
+        </div>
+      </div>
+      <div class="session-body">
+        ${qRows}
+        <div class="inline-form">
+          <div class="inline-form-title">Add another question to this paper</div>
+          <div class="form-grid-3" style="margin-bottom:10px">
+            <div class="field"><label>Question no.</label><input type="text" class="il-qnum" placeholder="e.g. Q5a" /></div>
+            <div class="field"><label>Topic</label><input type="text" class="il-topic" placeholder="e.g. Trigonometry" /></div>
+            <div class="field"><label>Marks</label><input type="number" class="il-marks" placeholder="e.g. 4" min="1" max="20" /></div>
+          </div>
+          <div class="form-full" style="margin-bottom:10px">
+            <div class="field"><label>Difficulty</label>
+              <select class="il-diff">
+                <option value="">— select —</option>
+                <option value="easy">Silly mistake</option>
+                <option value="medium">Concept gap</option>
+                <option value="hard">Didn't know it</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-full" style="margin-bottom:10px"><div class="field"><label>Question</label><textarea class="il-q" rows="2" placeholder="Describe what the question was asking..."></textarea></div></div>
+          <div class="form-full" style="margin-bottom:10px"><div class="field"><label>Correct solution</label><textarea class="il-sol" rows="3" placeholder="Write the correct method, key steps, or formula..."></textarea></div></div>
+          <div class="form-full" style="margin-bottom:0"><div class="field"><label>Notes (optional)</label><textarea class="il-notes" rows="1" placeholder="Why did you get it wrong?"></textarea></div></div>
+          <div class="inline-form-actions">
+            <button class="btn" onclick="cancelInlineForm('${sid}',${sess.id})">Cancel</button>
+            <button class="btn btn-primary" onclick="saveInlineQ('${sid}',${sess.id})">Add question</button>
+          </div>
+        </div>
       </div>
     </div>`;
   }).join('');
 }
 
-function updateCounts() {
-  let total=0, reviewed=0;
-  SUBJECTS.forEach(s => {
-    const entries=data[s.id]||[];
-    const n=entries.length, r=entries.filter(e=>e.reviewed).length;
-    total+=n; reviewed+=r;
-    const c=document.getElementById('count-'+s.id); if(c) c.textContent=n;
-    const ov=document.getElementById('ov-count-'+s.id); if(ov) ov.textContent=n;
-  });
-  ['global-total','ov-total'].forEach(id=>{ const e=document.getElementById(id); if(e) e.textContent=total; });
-  ['global-reviewed','ov-reviewed'].forEach(id=>{ const e=document.getElementById(id); if(e) e.textContent=reviewed; });
-  ['global-pending','ov-pending'].forEach(id=>{ const e=document.getElementById(id); if(e) e.textContent=total-reviewed; });
+function toggleSession(sid,sessId){
+  const card=document.getElementById(`sess-${sid}-${sessId}`);
+  if(card)card.classList.toggle('open');
 }
 
-function renderAll() { SUBJECTS.forEach(s=>renderSubject(s.id)); updateCounts(); }
+// ── UPDATE COUNTS ──
+function updateCounts(){
+  let totalSess=0,totalQs=0,reviewed=0;
+  SUBJECTS.forEach(s=>{
+    const sessions=data[s.id]||[];
+    const qs=sessions.flatMap(se=>se.questions);
+    totalSess+=sessions.length; totalQs+=qs.length; reviewed+=qs.filter(q=>q.reviewed).length;
+    const c=document.getElementById('count-'+s.id); if(c)c.textContent=qs.length;
+    const ov=document.getElementById('ov-count-'+s.id); if(ov)ov.textContent=qs.length;
+  });
+  ['global-sessions','ov-sessions'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=totalSess;});
+  ['global-total','ov-total'].forEach(id=>{const e=document.getElementById(id);if(e)e.textContent=totalQs;});
+  const grev=document.getElementById('global-reviewed');if(grev)grev.textContent=reviewed;
+  const ovp=document.getElementById('ov-pending');if(ovp)ovp.textContent=totalQs-reviewed;
+}
+
+// ── DOWNLOAD ──
+function downloadTxt(sid){
+  const sessions=data[sid]||[];
+  if(!sessions.length){alert('No mistakes logged yet.');return;}
+  const subj=SUBJECTS.find(s=>s.id===sid);
+  const lines=[
+    `YAGOUB'S MISTAKE LOG — ${subj.name.toUpperCase()} (CIE IGCSE ${subj.code})`,
+    `Exported: ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}`,
+    `Papers: ${sessions.length} | Questions: ${sessions.flatMap(s=>s.questions).length}`,
+    '='.repeat(60),''
+  ];
+  sessions.forEach((sess,si)=>{
+    lines.push(`PAPER ${si+1}: ${sess.paper} — ${sess.date}`);
+    lines.push('-'.repeat(60));
+    sess.questions.forEach((q,qi)=>{
+      lines.push(`  Q${qi+1}${q.qnum?' ('+q.qnum+')':''}`);
+      if(q.topic)  lines.push(`  Topic: ${q.topic}`);
+      if(q.diff)   lines.push(`  Difficulty: ${DIFF_LABEL[q.diff]}`);
+      if(q.marks)  lines.push(`  Marks: ${q.marks}`);
+      lines.push(`  Reviewed: ${q.reviewed?'Yes':'No'}`,`  `);
+      lines.push(`  QUESTION:`);
+      lines.push(`  ${q.q.replace(/\n/g,'\n  ')}`,``);
+      lines.push(`  CORRECT SOLUTION:`);
+      lines.push(`  ${q.sol.replace(/\n/g,'\n  ')}`);
+      if(q.notes)lines.push(``,`  NOTES:`,`  ${q.notes}`);
+      lines.push('');
+    });
+    lines.push('');
+  });
+  triggerDownload(lines.join('\n'),`yagoub-${sid}-mistakes.txt`,'text/plain');
+}
+
+function downloadJson(sid){
+  const sessions=data[sid]||[];
+  if(!sessions.length){alert('No mistakes logged yet.');return;}
+  const subj=SUBJECTS.find(s=>s.id===sid);
+  const payload={
+    student:'Yagoub',subject:subj.name,syllabus_code:subj.code,board:'CIE IGCSE',
+    exported:new Date().toISOString(),
+    total_papers:sessions.length,
+    total_questions:sessions.flatMap(s=>s.questions).length,
+    papers:sessions.map(sess=>({
+      paper:sess.paper,date:sess.date,
+      questions:sess.questions.map(q=>({
+        question_number:q.qnum||null,topic:q.topic||null,
+        difficulty:q.diff?DIFF_LABEL[q.diff]:null,
+        marks:q.marks?parseInt(q.marks):null,
+        question:q.q,correct_solution:q.sol,
+        notes:q.notes||null,reviewed:q.reviewed,
+      }))
+    }))
+  };
+  triggerDownload(JSON.stringify(payload,null,2),`yagoub-${sid}-mistakes.json`,'application/json');
+}
+
+function triggerDownload(content,filename,type){
+  const blob=new Blob([content],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=filename;a.click();
+  URL.revokeObjectURL(url);
+}
+
+function renderAll(){SUBJECTS.forEach(s=>renderSubject(s.id));updateCounts();}
 
 buildPages();
 renderAll();
