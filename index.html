@@ -103,6 +103,10 @@
 
   .form-divider { height:1px; background:var(--border-light); margin:16px 0; }
 
+  .parsed-preview { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .parsed-chip { font-family:'DM Mono',monospace; font-size:11px; font-weight:500; padding:3px 10px; border-radius:99px; background:var(--bg); border:1px solid var(--border); color:var(--text); }
+  .parsed-chip.highlight { background:var(--text); color:var(--bg); border-color:var(--text); }
+
   .form-actions { display:flex; justify-content:flex-end; gap:8px; }
   .btn { font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500; padding:8px 18px; border-radius:8px; cursor:pointer; transition:all .15s; border:1px solid var(--border); background:transparent; color:var(--muted); }
   .btn:hover { background:var(--bg); color:var(--text); }
@@ -346,10 +350,13 @@ function buildPages(){
       <div class="form-card" id="new-session-form-${s.id}">
         <div class="form-card-title">Log mistakes from a paper</div>
 
-        <div class="form-grid-3">
-          <div class="field"><label>Paper / Year</label><input type="text" id="f-paper-${s.id}" placeholder="e.g. 2023 Paper 2" /></div>
-          <div class="field"><label>Variant</label><input type="text" id="f-variant-${s.id}" placeholder="e.g. V1, V2, V3" /></div>
-          <div class="field"><label>Date sat</label><input type="date" id="f-date-${s.id}" /></div>
+        <div class="form-full">
+          <div class="field">
+            <label>Paper code</label>
+            <input type="text" id="f-code-${s.id}" placeholder="e.g. 0580/21/M/J/25" autocomplete="off" spellcheck="false" style="font-family:'DM Mono',monospace;letter-spacing:.04em;font-size:14px" oninput="parsePaperCode('${s.id}')" />
+          </div>
+          <div id="f-parsed-${s.id}" class="parsed-preview" style="display:none"></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px">Format: <span style="font-family:'DM Mono',monospace">syllabus/paper/session/year</span> — e.g. <span style="font-family:'DM Mono',monospace">0580/21/M/J/25</span> or just write anything like <span style="font-family:'DM Mono',monospace">Maths P2 2023</span></div>
         </div>
 
         <div class="form-divider"></div>
@@ -462,26 +469,74 @@ function removeQFromForm(sid,idx){
   renderQIForm(sid);
 }
 
+// ── PAPER CODE PARSER ──
+// Handles full CIE codes like 0580/21/M/J/25 or loose text like "Maths P2 2023"
+const SESSION_MAP={'M/J':'May/June','O/N':'Oct/Nov','F/M':'Feb/Mar'};
+function parseCIECode(raw){
+  const s=raw.trim().toUpperCase();
+  // Try strict CIE format: NNNN/NN/X/X/NN  (syllabus/paper/session/year)
+  const strict=s.match(/^(\d{4})\s*[\/\-]\s*(\d{1,2})\s*[\/\-]\s*([A-Z])\s*[\/\-]\s*([A-Z])\s*[\/\-]\s*(\d{2,4})$/);
+  if(strict){
+    const [,syllabus,paper,s1,s2,yr]=strict;
+    const sessionKey=s1+'/'+s2;
+    const sessionName=SESSION_MAP[sessionKey]||sessionKey;
+    const year=yr.length===2?'20'+yr:yr;
+    return {syllabus,paper:'Paper '+paper,session:sessionName,year,label:`${syllabus}/${paper} · ${sessionName} ${year}`};
+  }
+  // Try partial: NNNN/NN/YY  (syllabus/paper/year)
+  const partial=s.match(/^(\d{4})\s*[\/\-]\s*(\d{1,2})\s*[\/\-]\s*(\d{2,4})$/);
+  if(partial){
+    const [,syllabus,paper,yr]=partial;
+    const year=yr.length===2?'20'+yr:yr;
+    return {syllabus,paper:'Paper '+paper,session:null,year,label:`${syllabus}/${paper} · ${year}`};
+  }
+  // Try just NNNN/NN
+  const short=s.match(/^(\d{4})\s*[\/\-]\s*(\d{1,2})$/);
+  if(short){
+    const [,syllabus,paper]=short;
+    return {syllabus,paper:'Paper '+paper,session:null,year:null,label:`${syllabus}/${paper}`};
+  }
+  return null;
+}
+
+function parsePaperCode(sid){
+  const raw=document.getElementById('f-code-'+sid).value;
+  const preview=document.getElementById('f-parsed-'+sid);
+  if(!preview)return;
+  if(!raw.trim()){preview.style.display='none';preview.innerHTML='';return;}
+  const parsed=parseCIECode(raw);
+  if(parsed){
+    const chips=[
+      parsed.syllabus?`<span class="parsed-chip highlight">${parsed.syllabus}</span>`:'',
+      parsed.paper?`<span class="parsed-chip">${parsed.paper}</span>`:'',
+      parsed.session?`<span class="parsed-chip">${parsed.session}</span>`:'',
+      parsed.year?`<span class="parsed-chip">${parsed.year}</span>`:'',
+    ].filter(Boolean).join('');
+    preview.innerHTML=chips;
+    preview.style.display='flex';
+  } else {
+    preview.innerHTML=`<span class="parsed-chip" style="color:var(--muted)">Saved as: ${raw.trim()}</span>`;
+    preview.style.display='flex';
+  }
+}
+
+function getPaperLabel(sid){
+  const raw=document.getElementById('f-code-'+sid).value.trim();
+  if(!raw)return'Untitled paper';
+  const parsed=parseCIECode(raw);
+  return parsed?parsed.label:raw;
+}
+
 function saveSession(sid){
   snapshotFormQs(sid);
-  const paper=document.getElementById('f-paper-'+sid).value.trim();
-  const variant=document.getElementById('f-variant-'+sid).value.trim();
-  const dateVal=document.getElementById('f-date-'+sid).value;
   const qs=formQs[sid]||[];
-
-  // validate at least one question with q+sol
   const validQs=qs.filter(q=>q.q.trim()&&q.sol.trim());
-  if(!validQs.length){alert('Add at least one question with a question and solution filled in.');return;}
-
-  const paperLabel=[paper,variant].filter(Boolean).join(' · ');
-  const dateLabel=dateVal
-    ? new Date(dateVal+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
-    : new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  if(!validQs.length){alert('Add at least one question with the question and solution filled in.');return;}
 
   const session={
     id:Date.now(),
-    paper:paperLabel||'Untitled paper',
-    date:dateLabel,
+    paper:getPaperLabel(sid),
+    date:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),
     questions:validQs.map(q=>({
       id:Date.now()+Math.random(),
       qnum:q.qnum,topic:q.topic,marks:q.marks,diff:q.diff,
@@ -498,7 +553,8 @@ function saveSession(sid){
 }
 
 function clearSessionForm(sid){
-  ['f-paper-'+sid,'f-variant-'+sid,'f-date-'+sid].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const c=document.getElementById('f-code-'+sid);if(c)c.value='';
+  const p=document.getElementById('f-parsed-'+sid);if(p){p.innerHTML='';p.style.display='none';}
   formQs[sid]=[];
   renderQIForm(sid);
 }
