@@ -1667,13 +1667,52 @@ async function buildAnswerParts(files,setMsg){
   return parts;
 }
 
-function buildMarkingPrompt(subjDesc,parsedLabel,comment){
+// Topics removed from each subject for the 2026 syllabus (CIE IGCSE)
+// Claude will skip questions that are entirely about these removed topics
+const REMOVED_2026={
+  '0610': [
+    'kidney dialysis and transplants',
+    'voluntary and involuntary actions / reflex arcs detail',
+    'effects of heroin on synapses',
+    'effect of antibiotics on bacteria',
+    'effect of nicotine and heroin on the body',
+    'antenatal care and labour',
+    'breast feeding vs bottled milk',
+    'methods of birth control',
+    'how HIV affects the immune system',
+    'phenotypic and genotypic variation definitions',
+    'inheritance of sickle-cell anaemia',
+    'definitions of fitness and evolution',
+    'providing sufficient food / causes of famine',
+    'nuclear fall-out / discarded rubbish / chemical waste',
+    'acid rain details',
+    'water pollution by female hormones',
+    'sustainable development definition',
+    'fossil fuels',
+    'sewage treatment',
+  ],
+  // Physics: digital electronics removed in 2023 syllabus update (still applies to 2026)
+  '0625': [
+    'digital electronics / logic gates',
+  ],
+  // No significant removals for these subjects
+  '0580': [],
+  '0620': [],
+  '0452': [],
+  '0478': [],
+};
+
+function buildMarkingPrompt(subjDesc,parsedLabel,comment,syllabusCode){
+  const removed=syllabusCode?REMOVED_2026[syllabusCode]||[]:[];
+  const removedNote=removed.length>0
+    ?`\n\nIMPORTANT — 2026 SYLLABUS FILTER: The following topics have been REMOVED from the ${syllabusCode} syllabus for 2026 exams. If a question is entirely about one of these removed topics, DO NOT include it in the mistakes array — skip it entirely:\n${removed.map((t,i)=>`${i+1}. ${t}`).join('\n')}`
+    :'';
   return `You are marking a CIE IGCSE ${subjDesc} past paper${parsedLabel?' — '+parsedLabel:''}.
 ${comment?'IMPORTANT student note: '+comment+'\n':''}Student answers come first, then the official mark scheme.
 Identify every question where marks were lost. Return ONLY a JSON array (no markdown):
 [{"qnum":"Q4b","topic":"Algebra","difficulty":"easy|medium|hard","marks_lost":2,"question":"What was asked","correct_solution":"Correct answer per mark scheme with key marking points","student_error":"What the student did wrong","notes":"Key thing to remember next time"}]
 easy=silly/arithmetic mistake, medium=method error or concept gap, hard=didn't know the content at all.
-If no mistakes return: []`;
+If no mistakes return: []${removedNote}`;
 }
 
 function buildMSDocPart(msInfo){
@@ -1720,7 +1759,7 @@ async function runMarking(){
 
     const subjDesc=subj.name+' ('+subj.code+')';
     const parts=[
-      {type:'text',text:buildMarkingPrompt(subjDesc,parsed?parsed.label:codeVal,comment)},
+      {type:'text',text:buildMarkingPrompt(subjDesc,parsed?parsed.label:codeVal,comment,subj.code)},
       ...answerParts,
       {type:'text',text:'--- OFFICIAL MARK SCHEME ---'},
       msPart
@@ -1824,16 +1863,16 @@ async function runBulk(type){
   if(type==='text'){codeVal=document.getElementById('bulk-code-text').value||'';userText=document.getElementById('bulk-text').value||'';if(!userText.trim()){alert('Paste your mistakes first.');return;}}
   else{codeVal=document.getElementById('bulk-code-image').value||'';if(!_bulkImgFiles.length){alert('Upload photos first.');return;}}
   const parts=[];
+  const removed=REMOVED_2026[subj.code]||[];
+  const removedNote=removed.length>0?`\nSkip any mistakes about these removed 2026 topics: ${removed.join('; ')}`:''
   parts.push({type:'text',text:`Extract mistake log entries from the following content about a CIE IGCSE ${subj.name} (${subj.code}) paper${codeVal?' — '+codeVal:''}.
 Return ONLY a JSON array (no markdown):
 [{"qnum":"Q4b","topic":"Algebra","difficulty":"easy|medium|hard","marks_lost":2,"question":"What was asked","correct_solution":"Correct answer/method","student_error":"What went wrong","notes":"Key thing to remember"}]
-difficulty: easy=silly, medium=concept gap, hard=didn't know.`});
+difficulty: easy=silly, medium=concept gap, hard=didn't know.${removedNote}`});
   if(type==='text'){parts.push({type:'text',text:userText});}
   else{for(const f of _bulkImgFiles){const b=await f2b64(f);parts.push({type:'image',source:{type:'base64',media_type:f.type||'image/jpeg',data:b}});}}
   try{
-    const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:2048,messages:[{role:'user',content:parts}]})});
-    if(!resp.ok){const err=await resp.json();throw new Error(err.error?.message||'API error');}
-    const data=await resp.json();
+    const data=await claudeAPI(key,{model:'claude-sonnet-4-6',max_tokens:2048,messages:[{role:'user',content:parts}]},(m)=>console.log(m));
     const raw=data.content.find(c=>c.type==='text')?.text||'[]';
     _bulkParsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
     if(!Array.isArray(_bulkParsed)||!_bulkParsed.length){alert('Claude couldn\'t extract any mistakes from that content.');return;}
@@ -2051,10 +2090,10 @@ async function runQuickMark(){
     // Compress + encode answer files
     const fileParts=await buildAnswerParts(_quickAnswerFiles,setMsg);
 
-    // Step 1: detect paper code (tiny fast call, cheap)
+    // Step 1: detect paper code — use Haiku (fast, cheap, no rate limit impact)
     setMsg('Detecting paper code…');
     const detectData=await claudeAPI(key,{
-      model:'claude-sonnet-4-6',max_tokens:30,
+      model:'claude-haiku-4-5-20251001',max_tokens:30,
       messages:[{role:'user',content:[
         {type:'text',text:'Look at this CIE IGCSE exam paper. Find the paper code (format: NNNN/NN/X/X/NN e.g. 0580/21/M/J/25). Return ONLY the code, nothing else. If not found return UNKNOWN.'},
         ...fileParts
@@ -2098,7 +2137,7 @@ async function runQuickMark(){
     // Step 2: full marking call
     const subjDesc=subj?subj.name+' ('+subj.code+')':'a CIE IGCSE subject';
     const parts=[
-      {type:'text',text:buildMarkingPrompt(subjDesc,parsed?parsed.label:detectedCode,comment)},
+      {type:'text',text:buildMarkingPrompt(subjDesc,parsed?parsed.label:detectedCode,comment,subj?subj.code:null)},
       ...fileParts,
       {type:'text',text:'--- OFFICIAL MARK SCHEME ---'},
       msPart
