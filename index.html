@@ -553,43 +553,28 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
     <div id="quick-step1">
       <p style="font-size:13px;color:var(--muted);margin-bottom:1.25rem;line-height:1.7">
-        Pick a subject, enter the paper code, and upload your answers. The mark scheme is fetched automatically. Results save straight into the right subject on your PC.
+        Upload your answer PDF or photos. Claude reads the paper code automatically, identifies your subject, fetches the mark scheme, and logs all mistakes in the right place — no setup needed.
       </p>
 
-      <!-- Subject picker -->
+      <!-- Upload zone + paste button -->
       <div class="ff">
         <div class="field">
-          <label>Subject</label>
-          <div id="quick-subj-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:4px"></div>
-        </div>
-      </div>
-
-      <!-- Paper code -->
-      <div class="ff" style="margin-top:12px">
-        <div class="field">
-          <label>Paper code</label>
-          <input type="text" id="quick-code" placeholder="e.g. 0580/21/M/J/25" style="font-family:'DM Mono',monospace;font-size:14px" oninput="previewQuickMS()"/>
-        </div>
-        <div id="quick-ms-preview" style="display:none;margin-top:7px">
-          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
-            <span style="font-size:11px;color:var(--muted)">Mark scheme:</span>
-            <code id="quick-ms-fname" style="font-size:11px;background:var(--bg);padding:1px 6px;border-radius:4px;border:1px solid var(--border)"></code>
-            <a id="quick-ms-link" href="#" target="_blank" style="font-size:11px;color:var(--text)">↗ preview</a>
+          <label>Your answers (PDF or photos)</label>
+          <div style="display:flex;gap:8px;align-items:stretch">
+            <label class="upload-zone" id="quick-upload-zone" style="flex:1;cursor:pointer">
+              <span style="font-size:28px" id="quick-upload-icon">📄</span>
+              <span style="font-size:12px;color:var(--muted);text-align:center" id="quick-upload-hint">Tap to choose PDF or photos<br>from Files, Photos, or iCloud</span>
+              <input type="file" id="quick-answers" multiple accept="image/*,.pdf" style="display:none" onchange="handleQuickAnswers(event)"/>
+            </label>
+            <button onclick="pasteQuickFiles()" title="Paste PDF from clipboard" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;min-width:64px;padding:.75rem .5rem;border:1px dashed var(--border);border-radius:9px;background:var(--bg);color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;transition:all .15s;flex-shrink:0">
+              <span style="font-size:20px">📋</span>
+              Paste
+            </button>
           </div>
-          <div id="quick-ms-hint" style="font-size:11px;color:var(--ok-text);margin-top:3px"></div>
-        </div>
-      </div>
-
-      <!-- Answers upload -->
-      <div class="ff" style="margin-top:12px">
-        <div class="field">
-          <label>Your answers (photos or PDF)</label>
-          <label class="upload-zone" id="quick-upload-zone">
-            <span style="font-size:28px" id="quick-upload-icon">📄</span>
-            <span style="font-size:12px;color:var(--muted);text-align:center" id="quick-upload-hint">Tap to take a photo or choose files<br>JPG, PNG, or PDF</span>
-            <input type="file" id="quick-answers" multiple accept="image/*,.pdf" style="display:none" onchange="handleQuickAnswers(event)"/>
-          </label>
-          <div id="quick-answers-list" style="margin-top:5px;font-size:12px;color:var(--muted)"></div>
+          <div id="quick-answers-list" style="margin-top:6px;font-size:12px;color:var(--muted)"></div>
+          <div id="quick-detect-status" style="margin-top:5px;font-size:12px;display:none">
+            <span id="quick-detect-txt" style="color:var(--ok-text)"></span>
+          </div>
         </div>
       </div>
 
@@ -603,7 +588,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
       <!-- Manual MS fallback -->
       <details style="margin-top:10px">
-        <summary style="font-size:12px;color:var(--muted);cursor:pointer">Can't auto-fetch mark scheme? Upload manually</summary>
+        <summary style="font-size:12px;color:var(--muted);cursor:pointer">Mark scheme not found automatically? Upload it manually</summary>
         <div class="ff" style="margin-top:9px">
           <div class="field">
             <label>Mark scheme (PDF or images)</label>
@@ -623,13 +608,16 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       </div>
     </div>
 
-    <!-- Results step (reuses ai-modal logic) -->
+    <!-- Results step -->
     <div id="quick-step2" style="display:none">
       <div id="quick-loading" style="text-align:center;padding:2rem 0">
         <div style="font-size:28px;margin-bottom:.75rem">✦</div>
         <div style="font-size:13px;color:var(--muted)" id="quick-loading-txt">Starting…</div>
       </div>
       <div id="quick-results" style="display:none">
+        <div class="banner ok" id="quick-detected-info" style="display:none;margin-bottom:.75rem">
+          <span class="banner-txt" id="quick-detected-txt"></span>
+        </div>
         <div style="font-size:13px;color:var(--muted);margin-bottom:.9rem" id="quick-summary"></div>
         <div id="quick-q-list" style="display:flex;flex-direction:column;gap:7px;margin-bottom:1.25rem;max-height:340px;overflow-y:auto"></div>
         <div class="banner ok" id="quick-saved-banner" style="display:none">
@@ -701,7 +689,8 @@ const DIFF_CLS={easy:'tag-easy',medium:'tag-medium',hard:'tag-hard'};
 const SESS_NAMES={'M/J':'May/Jun','O/N':'Oct/Nov','F/M':'Feb/Mar'};
 const SESS_LETTER={'M/J':'s','O/N':'w','F/M':'m'};
 const SESS_SLUG={'M/J':'may-june','O/N':'oct-nov','F/M':'march'};
-const PP_SLUG={'0580':'Mathematics-0580','0610':'Biology-0610','0620':'Chemistry-0620','0625':'Physics-0625','0452':'Accounting-0452','0478':'Computer-Science-0478'};
+// bestexamhelp.com subject slugs
+const PP_SLUG={'0580':'mathematics-0580','0610':'biology-0610','0620':'chemistry-0620','0625':'physics-0625','0452':'accounting-0452','0478':'computer-science-0478'};
 const ALL_YEARS=[];for(let y=2003;y<=2025;y++)ALL_YEARS.push(y);
 const DEFAULT_CFG={
   maths:     {startYear:2020,sessions:['M/J','O/N'],paperGroups:[{base:2,variants:[1,2,3]},{base:4,variants:[1,2,3]}]},
@@ -817,9 +806,11 @@ function buildMSUrl(parsed){
   const slug=PP_SLUG[parsed.syllabus];if(!slug)return null;
   const sl=SESS_LETTER[parsed.sessKey];if(!sl)return null;
   const yy=String(parsed.year).slice(2);
-  const fname=`${parsed.syllabus}_${sl}${yy}_ms_${parsed.paperNum}.pdf`;
-  const url=`https://pastpapers.co/caie/IGCSE/${slug}/${parsed.year}-${SESS_SLUG[parsed.sessKey]}/${fname}`;
-  return{url,fname};
+  // bestexamhelp.com format: {code}-{sess}{yy}-ms-{paper}.pdf
+  const fname=`${parsed.syllabus}-${sl}${yy}-ms-${parsed.paperNum}.pdf`;
+  const url=`https://bestexamhelp.com/exam/cambridge-igcse/${slug}/${parsed.year}/${fname}`;
+  const pageUrl=`https://bestexamhelp.com/exam/cambridge-igcse/${slug}/${parsed.year}/${parsed.syllabus}-${sl}${yy}-ms-${parsed.paperNum}.php`;
+  return{url,fname,pageUrl};
 }
 
 function parsePaperCode(sid){
@@ -1884,162 +1875,139 @@ function showToast(msg){
 // QUICK UPLOAD (dashboard)
 // ══════════════════════════════════════════
 let _quickSid=null,_quickAnswerFiles=[],_quickManualMSFiles=[],_quickParsed=[];
+let _quickDetected=null;
 
 function openQuickUpload(){
   if(!getAKey()){alert('Add your Anthropic API key in Settings first.');nav('settings',document.querySelector('[data-page=settings]'));return;}
-  _quickSid=null;_quickAnswerFiles=[];_quickManualMSFiles=[];_quickParsed=[];
-  // reset UI
+  _quickSid=null;_quickAnswerFiles=[];_quickManualMSFiles=[];_quickParsed=[];_quickDetected=null;
   document.getElementById('quick-step1').style.display='block';
   document.getElementById('quick-step2').style.display='none';
   document.getElementById('quick-results').style.display='none';
   document.getElementById('quick-loading').style.display='block';
-  document.getElementById('quick-code').value='';
   document.getElementById('quick-comment').value='';
   document.getElementById('quick-answers-list').textContent='';
   document.getElementById('quick-ms-manual-list').textContent='';
-  document.getElementById('quick-ms-preview').style.display='none';
+  document.getElementById('quick-detect-status').style.display='none';
   document.getElementById('quick-saved-banner').style.display='none';
   document.getElementById('quick-save-row').style.display='flex';
-  // build subject picker
-  const g=document.getElementById('quick-subj-grid');
-  g.innerHTML=SUBJECTS.map(s=>`
-    <div id="qs-${s.id}" onclick="pickQuickSubj('${s.id}')" style="
-      display:flex;align-items:center;gap:8px;padding:.6rem .8rem;
-      border:1px solid var(--border);border-radius:9px;cursor:pointer;
-      background:var(--surface);transition:all .15s;user-select:none">
-      <span style="font-size:14px">${s.icon}</span>
-      <span style="font-size:12px;font-weight:500;color:var(--text)">${s.name.split(' ')[0]}</span>
-    </div>`).join('');
+  const icon=document.getElementById('quick-upload-icon');if(icon)icon.textContent='📄';
+  const hint=document.getElementById('quick-upload-hint');if(hint)hint.textContent='Tap to choose PDF or photos from Files, Photos, or iCloud';
   openModal('quick-modal');
-}
-
-function pickQuickSubj(sid){
-  _quickSid=sid;
-  document.querySelectorAll('[id^=qs-]').forEach(el=>{
-    const active=el.id==='qs-'+sid;
-    el.style.borderColor=active?'var(--text)':'var(--border)';
-    el.style.background=active?'var(--text)':'var(--surface)';
-    el.querySelector('span:last-child').style.color=active?'var(--bg)':'var(--text)';
-  });
-  // auto-fill code prefix
-  const subj=SUBJECTS.find(s=>s.id===sid);
-  const inp=document.getElementById('quick-code');
-  if(inp&&!inp.value)inp.placeholder=`e.g. ${subj.code}/21/M/J/25`;
-}
-
-function previewQuickMS(){
-  const raw=(document.getElementById('quick-code')||{}).value||'';
-  const box=document.getElementById('quick-ms-preview');if(!box)return;
-  if(!raw.trim()){box.style.display='none';return;}
-  const p=parseCIE(raw);const ms=p?buildMSUrl(p):null;
-  if(ms){
-    box.style.display='block';
-    document.getElementById('quick-ms-fname').textContent=ms.fname;
-    document.getElementById('quick-ms-link').href=ms.url;
-    document.getElementById('quick-ms-hint').textContent='Will be fetched automatically.';
-    document.getElementById('quick-ms-hint').style.color='var(--ok-text)';
-  }else{
-    box.style.display='block';
-    document.getElementById('quick-ms-fname').textContent='—';
-    document.getElementById('quick-ms-hint').textContent='Enter a full code like 0580/21/M/J/25 to auto-fetch.';
-    document.getElementById('quick-ms-hint').style.color='var(--muted)';
-  }
 }
 
 function handleQuickAnswers(e){
   _quickAnswerFiles=Array.from(e.target.files);
+  updateQuickFileUI();
+}
+
+function updateQuickFileUI(){
   const list=document.getElementById('quick-answers-list');
   const icon=document.getElementById('quick-upload-icon');
   const hint=document.getElementById('quick-upload-hint');
-  list.textContent=_quickAnswerFiles.map(f=>f.name).join(', ');
   if(_quickAnswerFiles.length){
+    list.textContent=_quickAnswerFiles.map(f=>f.name).join(', ');
     if(icon)icon.textContent='✓';
-    if(hint)hint.textContent=`${_quickAnswerFiles.length} file${_quickAnswerFiles.length!==1?'s':''} selected`;
+    if(hint)hint.textContent=_quickAnswerFiles.length+' file'+(_quickAnswerFiles.length!==1?'s':'')+' ready';
   }
 }
+
+async function pasteQuickFiles(){
+  try{
+    const items=await navigator.clipboard.read();
+    const files=[];
+    for(const item of items){
+      for(const type of item.types){
+        if(type==='application/pdf'||type.startsWith('image/')){
+          const blob=await item.getType(type);
+          const ext=type==='application/pdf'?'pdf':type.split('/')[1];
+          files.push(new File([blob],'pasted.'+ext,{type}));
+        }
+      }
+    }
+    if(files.length){_quickAnswerFiles=files;updateQuickFileUI();showToast('Pasted '+files.length+' file'+(files.length!==1?'s':''));}
+    else showToast('No PDF or image found in clipboard. Use the file picker instead.');
+  }catch(e){showToast('Paste not available on this device — use the file picker.');}
+}
+
 function handleQuickManualMS(e){
   _quickManualMSFiles=Array.from(e.target.files);
   document.getElementById('quick-ms-manual-list').textContent=_quickManualMSFiles.map(f=>f.name).join(', ');
 }
 
-async function runQuickMark(){
-  if(!_quickSid){alert('Please select a subject first.');return;}
-  if(!_quickAnswerFiles.length){alert('Please upload your answers first.');return;}
-  const key=getAKey();if(!key){alert('No API key set.');return;}
-  const codeVal=(document.getElementById('quick-code')||{}).value||'';
-  const comment=(document.getElementById('quick-comment')||{}).value||'';
-  const parsed=parseCIE(codeVal);const msInfo=parsed?buildMSUrl(parsed):null;
-  const subj=SUBJECTS.find(s=>s.id===_quickSid);
+async function detectPaperCode(key,fileParts){
+  const dp=[{type:'text',text:'Look at this CIE IGCSE exam paper. Find the paper code printed on it (format: NNNN/NN/X/X/NN e.g. 0580/21/M/J/25). Return ONLY the paper code, nothing else. If not found return UNKNOWN.'},...fileParts];
+  const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:30,messages:[{role:'user',content:dp}]})});
+  if(!r.ok)return null;
+  const d=await r.json();
+  const txt=(d.content.find(c=>c.type==='text')?.text||'').trim().toUpperCase();
+  return txt==='UNKNOWN'||!txt?null:txt;
+}
 
+async function runQuickMark(){
+  if(!_quickAnswerFiles.length){alert('Please upload or paste your answers first.');return;}
+  const key=getAKey();if(!key){alert('No API key set.');return;}
+  const comment=(document.getElementById('quick-comment')||{}).value||'';
   document.getElementById('quick-step1').style.display='none';
   document.getElementById('quick-step2').style.display='block';
   document.getElementById('quick-loading').style.display='block';
   document.getElementById('quick-results').style.display='none';
   const setMsg=m=>{const e=document.getElementById('quick-loading-txt');if(e)e.textContent=m;};
-
   try{
-    const parts=[];
-    parts.push({type:'text',text:`You are marking a CIE IGCSE ${subj.name} (${subj.code}) past paper${codeVal?' — '+codeVal:''}.
-Student's answers come first, then the official mark scheme.
-${comment?'IMPORTANT student note: '+comment:''}
-Identify every question where marks were lost. Return ONLY a JSON array (no markdown, no extra text):
-[{"qnum":"Q4b","topic":"Algebra","difficulty":"easy|medium|hard","marks_lost":2,"question":"What was asked","correct_solution":"Correct answer per mark scheme","student_error":"What student did wrong","notes":"Key thing to remember"}]
-easy=silly mistake, medium=method/concept gap, hard=didn't know content. If no mistakes return: []`});
-
-    setMsg('Uploading your answers…');
-    for(const f of _quickAnswerFiles){const b=await f2b64(f);const mt=f.type||'image/jpeg';parts.push(mt==='application/pdf'?{type:'document',source:{type:'base64',media_type:'application/pdf',data:b}}:{type:'image',source:{type:'base64',media_type:mt,data:b}});}
-    parts.push({type:'text',text:'--- OFFICIAL MARK SCHEME ---'});
-
-    let msLoaded=false;
-    if(msInfo){
-      try{setMsg('Fetching mark scheme from pastpapers.co…');const b=await fetchMSb64(msInfo.url);parts.push({type:'document',source:{type:'base64',media_type:'application/pdf',data:b}});msLoaded=true;setMsg('Mark scheme loaded ✓ — Claude is marking…');}
-      catch(e){setMsg('Auto-fetch failed — checking manual upload…');}
+    const fileParts=[];
+    setMsg('Reading your paper...');
+    for(const f of _quickAnswerFiles){const b=await f2b64(f);const mt=f.type||'image/jpeg';fileParts.push(mt==='application/pdf'?{type:'document',source:{type:'base64',media_type:'application/pdf',data:b}}:{type:'image',source:{type:'base64',media_type:mt,data:b}});}
+    setMsg('Detecting paper code...');
+    const detectedCode=await detectPaperCode(key,fileParts);
+    const parsed=detectedCode?parseCIE(detectedCode):null;
+    let subj=null;
+    if(parsed){subj=SUBJECTS.find(s=>s.code===parsed.syllabus);_quickSid=subj?subj.id:null;}
+    const detBox=document.getElementById('quick-detected-info');
+    const detTxt=document.getElementById('quick-detected-txt');
+    if(detBox&&detTxt){
+      if(parsed&&subj){detTxt.innerHTML='Detected: <strong>'+parsed.label+'</strong> &middot; <strong>'+subj.name+'</strong>';detBox.style.display='flex';}
+      else if(detectedCode){detTxt.innerHTML='Found code <strong>'+detectedCode+'</strong> but could not match a subject.';detBox.style.display='flex';}
     }
+    const msInfo=parsed?buildMSUrl(parsed):null;
+    const parts=[];
+    const subjDesc=subj?subj.name+' ('+subj.code+')':'a CIE IGCSE subject';
+    parts.push({type:'text',text:'You are marking a CIE IGCSE '+subjDesc+' past paper'+(parsed?' -- '+parsed.label:'')+'. Student answers come first, then the official mark scheme. '+(comment?'IMPORTANT student note: '+comment+'. ':'')+' Identify every question where marks were lost. Return ONLY a JSON array (no markdown): [{"qnum":"Q4b","topic":"Algebra","difficulty":"easy|medium|hard","marks_lost":2,"question":"What was asked","correct_solution":"Correct answer per mark scheme","student_error":"What student did wrong","notes":"Key thing to remember"}] easy=silly mistake, medium=method/concept gap, hard=did not know. If no mistakes return: []'});
+    parts.push(...fileParts);
+    parts.push({type:'text',text:'--- OFFICIAL MARK SCHEME ---'});
+    let msLoaded=false;
+    if(msInfo){try{setMsg('Fetching mark scheme from bestexamhelp.com...');const b=await fetchMSb64(msInfo.url);parts.push({type:'document',source:{type:'base64',media_type:'application/pdf',data:b}});msLoaded=true;setMsg('Mark scheme loaded - Claude is marking your paper...');}catch(e){setMsg('Mark scheme not found online - checking manual upload...');}}
     if(!msLoaded){
       if(!_quickManualMSFiles.length){
         document.getElementById('quick-loading').style.display='none';
         document.getElementById('quick-results').style.display='block';
-        document.getElementById('quick-summary').innerHTML=`Could not fetch mark scheme automatically. Expand "Upload manually" and try again.`;
+        if(detBox)detBox.style.display='flex';
+        document.getElementById('quick-summary').innerHTML=(parsed?'Detected <strong>'+parsed.label+'</strong> but could not fetch the mark scheme. ':'Could not detect a paper code or find the mark scheme. ')+'Expand the section below and upload the mark scheme manually, then try again.';
         document.getElementById('quick-q-list').innerHTML='';
         document.getElementById('quick-save-btn').style.display='none';
         document.getElementById('quick-save-row').style.display='none';
         return;
       }
+      setMsg('Using manually uploaded mark scheme...');
       for(const f of _quickManualMSFiles){const b=await f2b64(f);const mt=f.type||'image/jpeg';parts.push(mt==='application/pdf'?{type:'document',source:{type:'base64',media_type:'application/pdf',data:b}}:{type:'image',source:{type:'base64',media_type:mt,data:b}});}
     }
-
-    setMsg('Claude is marking your paper…');
+    setMsg('Claude is marking your paper...');
     const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:4096,messages:[{role:'user',content:parts}]})});
     if(!resp.ok){const err=await resp.json();throw new Error(err.error?.message||'API error '+resp.status);}
     const data=await resp.json();
     const raw=data.content.find(c=>c.type==='text')?.text||'[]';
     _quickParsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
-
+    _quickDetected={code:detectedCode,parsed,subj,msInfo};
     document.getElementById('quick-loading').style.display='none';
     document.getElementById('quick-results').style.display='block';
-
+    if(detBox)detBox.style.display='flex';
     if(!Array.isArray(_quickParsed)||!_quickParsed.length){
-      document.getElementById('quick-summary').textContent='No mistakes found — perfect paper! Saving to log…';
+      document.getElementById('quick-summary').textContent='No mistakes found - perfect paper!';
       document.getElementById('quick-q-list').innerHTML='';
       document.getElementById('quick-save-row').style.display='none';
-      // auto-save even a perfect paper to tick off the PP tracker
       saveQuickMark();return;
     }
-    document.getElementById('quick-summary').textContent=`Claude found ${_quickParsed.length} mistake${_quickParsed.length!==1?'s':''}. Review then save.`;
+    document.getElementById('quick-summary').textContent='Claude found '+_quickParsed.length+' mistake'+(_quickParsed.length!==1?'s':'')+'. Review then save.';
     document.getElementById('quick-save-btn').style.display='inline-flex';
-    document.getElementById('quick-q-list').innerHTML=_quickParsed.map((q,i)=>`
-      <div style="background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:.8rem 1rem">
-        <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;flex-wrap:wrap">
-          <span style="font-family:'DM Mono',monospace;font-size:11px;font-weight:500">${q.qnum||'Q'+(i+1)}</span>
-          ${q.topic?`<span class="tag tag-topic">${q.topic}</span>`:''}
-          ${q.difficulty?`<span class="tag ${DIFF_CLS[q.difficulty]||'tag-topic'}">${DIFF_LBL[q.difficulty]||q.difficulty}</span>`:''}
-          ${q.marks_lost?`<span class="tag tag-marks">−${q.marks_lost}m</span>`:''}
-        </div>
-        <div class="qlbl">Question</div><div class="qtxt" style="margin-bottom:7px">${q.question||''}</div>
-        <div class="qlbl">Correct solution</div>
-        <div class="qsol">${q.correct_solution||''}</div>
-        ${q.student_error?`<div class="qnotes">Your error: ${q.student_error}</div>`:''}
-      </div>`).join('');
+    document.getElementById('quick-q-list').innerHTML=_quickParsed.map((q,i)=>'<div style="background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:.8rem 1rem"><div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;flex-wrap:wrap"><span style="font-family:\'DM Mono\',monospace;font-size:11px;font-weight:500">'+(q.qnum||'Q'+(i+1))+'</span>'+(q.topic?'<span class="tag tag-topic">'+q.topic+'</span>':'')+(q.difficulty?'<span class="tag '+(DIFF_CLS[q.difficulty]||'tag-topic')+'">'+(DIFF_LBL[q.difficulty]||q.difficulty)+'</span>':'')+(q.marks_lost?'<span class="tag tag-marks">-'+q.marks_lost+'m</span>':'')+'</div><div class="qlbl">Question</div><div class="qtxt" style="margin-bottom:7px">'+(q.question||'')+'</div><div class="qlbl">Correct solution</div><div class="qsol">'+(q.correct_solution||'')+'</div>'+(q.student_error?'<div class="qnotes">Your error: '+q.student_error+'</div>':'')+'</div>').join('');
   }catch(e){
     document.getElementById('quick-loading').style.display='none';
     document.getElementById('quick-results').style.display='block';
@@ -2049,13 +2017,14 @@ easy=silly mistake, medium=method/concept gap, hard=didn't know content. If no m
   }
 }
 
+
 function saveQuickMark(){
-  const codeVal=(document.getElementById('quick-code')||{}).value||'';
-  const subj=SUBJECTS.find(s=>s.id===_quickSid);
-  const p=parseCIE(codeVal);
+  const det=_quickDetected||{};
+  const subj=det.subj||SUBJECTS.find(s=>s.id===_quickSid)||SUBJECTS[0];
+  const parsed=det.parsed;
   const session={
     id:Date.now(),
-    paper:p?p.label:(codeVal||subj.name+' paper'),
+    paper:parsed?parsed.label:(det.code||subj.name+' paper'),
     date:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),
     score:null,totalMarks:null,
     questions:(_quickParsed||[]).map(q=>({
@@ -2066,19 +2035,18 @@ function saveQuickMark(){
       reviewed:false,
     }))
   };
-  mistakeData[_quickSid].unshift(session);
-  autocheckPP(_quickSid,codeVal);
+  if(_quickSid)mistakeData[_quickSid].unshift(session);
+  if(_quickSid&&det.code)autocheckPP(_quickSid,det.code);
   saveLocal();
-  renderMLSubject(_quickSid);
-  // show saved confirmation instead of dismissing
+  if(_quickSid)renderMLSubject(_quickSid);
   document.getElementById('quick-save-row').style.display='none';
   const banner=document.getElementById('quick-saved-banner');
   const txt=document.getElementById('quick-saved-txt');
   if(banner&&txt){
-    txt.innerHTML=`<strong>Saved!</strong> ${session.questions.length} mistake${session.questions.length!==1?'s':''} logged under <strong>${subj.name}</strong>${codeVal?' — '+session.paper:''}.`;
+    txt.innerHTML='<strong>Saved!</strong> '+session.questions.length+' mistake'+(session.questions.length!==1?'s':'')+' logged under <strong>'+subj.name+'</strong>'+(parsed?' — '+session.paper:'')+'.';
     banner.style.display='flex';
   }
-  showToast(`Saved to ${subj.name} mistake log`);
+  showToast('Saved to '+subj.name+' mistake log');
   _quickParsed=[];
 }
 
