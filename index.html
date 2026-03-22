@@ -469,7 +469,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <button class="modal-close" onclick="closeModal('ai-modal')">×</button>
     </div>
     <div id="ai-step1">
-      <p style="font-size:13px;color:var(--muted);margin-bottom:1.1rem;line-height:1.7">Enter the paper code and upload your answers. The mark scheme is fetched automatically from bestexamhelp.com.</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:1.1rem;line-height:1.7">Enter the paper code and upload your answers. The mark scheme is fetched automatically from papacambridge.</p>
       <div class="ff">
         <div class="field">
           <label>Paper code</label>
@@ -689,7 +689,7 @@ const DIFF_CLS={easy:'tag-easy',medium:'tag-medium',hard:'tag-hard'};
 const SESS_NAMES={'M/J':'May/Jun','O/N':'Oct/Nov','F/M':'Feb/Mar'};
 const SESS_LETTER={'M/J':'s','O/N':'w','F/M':'m'};
 const SESS_SLUG={'M/J':'may-june','O/N':'oct-nov','F/M':'march'};
-// bestexamhelp.com subject slugs
+// papacambridge subject slugs
 const PP_SLUG={'0580':'mathematics-0580','0610':'biology-0610','0620':'chemistry-0620','0625':'physics-0625','0452':'accounting-0452','0478':'computer-science-0478'};
 const ALL_YEARS=[];for(let y=2003;y<=2025;y++)ALL_YEARS.push(y);
 const DEFAULT_CFG={
@@ -803,12 +803,12 @@ function parseCIE(raw){
 
 function buildMSUrl(parsed){
   if(!parsed||!parsed.syllabus||!parsed.paperNum||!parsed.year||!parsed.sessKey)return null;
-  const slug=PP_SLUG[parsed.syllabus];if(!slug)return null;
   const sl=SESS_LETTER[parsed.sessKey];if(!sl)return null;
   const yy=String(parsed.year).slice(2);
-  // bestexamhelp.com format: {code}_{sess}{yy}_ms_{paper}.pdf
+  // PapaCambridge — publicly accessible, no CORS block
+  // format: {code}_{sess}{yy}_ms_{paper}.pdf
   const fname=`${parsed.syllabus}_${sl}${yy}_ms_${parsed.paperNum}.pdf`;
-  const url=`https://bestexamhelp.com/exam/cambridge-igcse/${slug}/${parsed.year}/${fname}`;
+  const url=`https://pastpapers.papacambridge.com/directories/CAIE/CAIE-pastpapers/upload/${fname}`;
   return{url,fname};
 }
 
@@ -1698,7 +1698,7 @@ async function runMarking(){
     // Get mark scheme — try URL source first, then manual upload
     let msPart=null;
     if(msInfo){
-      setMsg('Linking mark scheme from bestexamhelp.com…');
+      setMsg('Linking mark scheme from papacambridge…');
       msPart=buildMSDocPart(msInfo);
     }
     if(!msPart&&_manualMSFiles.length){
@@ -2077,7 +2077,7 @@ async function runQuickMark(){
 
     // Build mark scheme part
     let msPart=null;
-    if(msInfo){setMsg('Linking mark scheme from bestexamhelp.com…');msPart=buildMSDocPart(msInfo);}
+    if(msInfo){setMsg('Linking mark scheme from papacambridge…');msPart=buildMSDocPart(msInfo);}
     if(!msPart&&_quickManualMSFiles.length){
       setMsg('Using manually uploaded mark scheme…');
       const b=await f2b64(_quickManualMSFiles[0]);
