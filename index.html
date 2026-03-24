@@ -1884,19 +1884,32 @@ Only return [] if you are CERTAIN every single answer is fully correct by CIE st
 }
 
 async function fetchMSasBase64(url){
-  // Fetch the PDF in the browser and convert to base64
-  // This avoids Anthropic URL source restrictions
-  try{
-    const resp=await fetch(url);
-    if(!resp.ok)throw new Error('HTTP '+resp.status);
-    const buf=await resp.arrayBuffer();
-    const bytes=new Uint8Array(buf);
-    let binary='';
-    for(let i=0;i<bytes.byteLength;i++)binary+=String.fromCharCode(bytes[i]);
-    return btoa(binary);
-  }catch(e){
-    throw new Error('Could not fetch mark scheme: '+e.message+'. Try uploading it manually instead.');
+  // Try direct fetch first, then CORS proxies
+  const attempts=[
+    url,
+    'https://api.allorigins.win/raw?url='+encodeURIComponent(url),
+    'https://corsproxy.io/?'+encodeURIComponent(url),
+  ];
+  let lastErr='';
+  for(const attempt of attempts){
+    try{
+      const resp=await fetch(attempt);
+      if(!resp.ok)throw new Error('HTTP '+resp.status);
+      const buf=await resp.arrayBuffer();
+      if(buf.byteLength<1000)throw new Error('Response too small — probably not a PDF');
+      const bytes=new Uint8Array(buf);
+      let binary='';
+      // Use chunked approach to avoid stack overflow on large PDFs
+      const chunk=8192;
+      for(let i=0;i<bytes.byteLength;i+=chunk){
+        binary+=String.fromCharCode(...bytes.subarray(i,i+chunk));
+      }
+      return btoa(binary);
+    }catch(e){
+      lastErr=e.message;
+    }
   }
+  throw new Error('Could not fetch mark scheme ('+lastErr+'). Upload it manually instead.');
 }
 
 function buildMSDocPart(msInfo){
@@ -1924,7 +1937,7 @@ async function runMarking(){
     if(_aiMSMode==='fetch'){
       if(msInfo){
         try{
-          setMsg('Downloading mark scheme from PapaCambridge…');
+          setMsg('Fetching mark scheme… (this may take 10–20s)');
           const msB64=await fetchMSasBase64(msInfo.url);
           msPart={type:'document',source:{type:'base64',media_type:'application/pdf',data:msB64}};
           setMsg('Mark scheme loaded ✓');
@@ -2317,7 +2330,7 @@ async function runQuickMark(){
     if(_quickMSMode==='fetch'){
       if(msInfo){
         try{
-          setMsg('Downloading mark scheme from PapaCambridge…');
+          setMsg('Fetching mark scheme… (this may take 10–20s)');
           const msB64=await fetchMSasBase64(msInfo.url);
           msPart={type:'document',source:{type:'base64',media_type:'application/pdf',data:msB64}};
           setMsg('Mark scheme loaded ✓');
