@@ -1287,7 +1287,8 @@ function renderMLSubject(sid){
   list.innerHTML=filtered.map(sess=>{
     const allRev=sess.questions.every(q=>q.reviewed);
     const revCt=sess.questions.filter(q=>q.reviewed).length;
-    const scoreStr=sess.score!=null&&sess.totalMarks!=null?` — ${sess.score}/${sess.totalMarks} (${Math.round(sess.score/sess.totalMarks*100)}%)`:sess.score!=null?` — ${sess.score} marks`:'';
+    const liveScore=getSessionScore(sess);
+    const scoreStr=liveScore.score!=null&&liveScore.total!=null?` — ${liveScore.score}/${liveScore.total} (${Math.round(liveScore.score/liveScore.total*100)}%)`:liveScore.score!=null?` — ${liveScore.score} marks`:'';
     const qRows=sess.questions.map((q,qi)=>`
       <div class="q-row">
         <div class="q-row-hdr">
@@ -1411,9 +1412,9 @@ function renderScores(){
   const c=document.getElementById('scores-content');if(!c)return;
   let html='';
   SUBJECTS.forEach(subj=>{
-    const scored=(mistakeData[subj.id]||[]).filter(s=>s.score!=null&&s.totalMarks!=null).slice().reverse();
+    const scored=(mistakeData[subj.id]||[]).filter(s=>s.totalMarks!=null).slice().reverse();
     if(!scored.length)return;
-    const pcts=scored.map(s=>Math.round(s.score/s.totalMarks*100));
+    const pcts=scored.map(s=>{const ls=getSessionScore(s);return Math.round(ls.score/ls.total*100);});
     const max=Math.max(...pcts,1);
     const avg=Math.round(pcts.reduce((a,b)=>a+b,0)/pcts.length);
     html+=`<div class="chart-wrap">
@@ -1671,6 +1672,18 @@ function extractMarkingResult(text){
   // Fall back to bare array (legacy)
   const arr=extractJSONArray(text);
   return{total_marks:null,marks_lost:null,mistakes:arr};
+}
+
+// Compute live score from a session — derives from totalMarks and current questions
+// ONLY for sessions marked as autoScore (created by AI marking).
+// Manually-entered sessions keep their stored score.
+function getSessionScore(sess){
+  if(!sess)return{score:null,total:null};
+  if(sess.autoScore&&sess.totalMarks!=null){
+    const lost=(sess.questions||[]).reduce((sum,q)=>sum+(parseInt(q.marks)||0),0);
+    return{score:Math.max(0,sess.totalMarks-lost),total:sess.totalMarks};
+  }
+  return{score:sess.score,total:sess.totalMarks};
 }
 
 // Filter out entries that are self-contradicting (Claude says "actually correct" while deducting marks)
@@ -2048,12 +2061,12 @@ Format:
 
 difficulty: easy=arithmetic/silly slip, medium=method gap, hard=didn't know / left blank.
 
-CRITICAL FIELD LENGTH RULES (violating these wastes tokens and confuses me):
-- "question": Maximum 10 words. Just the topic of what was asked.
+CRITICAL FIELD LENGTH RULES:
+- "question": Write the actual question text from the paper. Can be as long as needed to convey the full question.
 - "student_error": ONE short sentence. Just what was wrong. NO restating the correct answer. NO equivocation. NO "actually..." mid-sentence corrections.
-- "correct_solution": ONE short sentence. The key answer only. No alternative explanations, no parenthetical corrections.
+- "correct_solution": The FULL mark scheme answer (every mark point), but written as concisely as possible. Use semicolons to separate mark points. Do not pad with explanation — just the points needed for full marks.
 - "notes": Maximum 10 words. ONE revision tip.
-- If you find yourself writing "actually" or correcting yourself mid-sentence, STOP and rewrite shorter.
+- If you find yourself writing "actually" or correcting yourself mid-sentence in student_error, STOP and rewrite shorter.
 
 CRITICAL: ONLY include questions where marks were LOST (marks_lost >= 1). If the student got it right, SKIP IT — do not add it to the mistakes array.
 SELF-CHECK before adding any entry: Re-read the student's answer. If it is actually valid/correct/acceptable, DO NOT add it. Never write "this is actually correct", "both correct", "is acceptable" in student_error — if any of these apply, the entry should not exist.`;
@@ -2232,14 +2245,14 @@ function saveMarking(){
   const codeVal=document.getElementById('ai-code').value||'';
   const subj=SUBJECTS.find(s=>s.id===_curSid);
   const p=parseCIE(codeVal);
-  const total=_aiScore.total,lost=_aiScore.lost;
-  const earned=(total!=null&&lost!=null)?(total-lost):null;
-  const session={id:Date.now(),paper:p?p.label:(codeVal||subj.name+' paper'),date:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),score:earned,totalMarks:total,
+  const total=_aiScore.total;
+  const session={id:Date.now(),paper:p?p.label:(codeVal||subj.name+' paper'),date:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),score:null,totalMarks:total,autoScore:true,
     questions:_aiParsed.map(q=>({id:Date.now()+Math.random(),qnum:q.qnum||'',topic:q.topic||'',diff:q.difficulty||'',marks:q.marks_lost?String(q.marks_lost):'',q:q.question||'',sol:q.correct_solution||'',notes:(q.student_error?'Error: '+q.student_error+'. ':'')+( q.notes||''),reviewed:false}))};
   mistakeData[_curSid].unshift(session);
   autocheckPP(_curSid,codeVal);
   saveLocal();renderMLSubject(_curSid);closeModal('ai-modal');
-  const scoreMsg=(earned!=null&&total)?` — score ${earned}/${total}`:'';
+  const ls=getSessionScore(session);
+  const scoreMsg=(ls.score!=null&&ls.total)?` — score ${ls.score}/${ls.total}`:'';
   showToast(`Saved ${session.questions.length} mistakes${scoreMsg}`);
   _aiParsed=[];_aiScore={total:null,lost:null};
 }
@@ -2328,7 +2341,8 @@ function copySessionPrompt(sid,sessId){
   const sess=(mistakeData[sid]||[]).find(s=>s.id===sessId);
   if(!sess||!sess.questions.length){showToast('No mistakes in this paper');return;}
   const subj=SUBJECTS.find(s=>s.id===sid);
-  const scoreStr=(sess.score!=null&&sess.totalMarks!=null)?`\nScore: ${sess.score}/${sess.totalMarks} (${Math.round(sess.score/sess.totalMarks*100)}%)`:'';
+  const ls=getSessionScore(sess);
+  const scoreStr=(ls.score!=null&&ls.total!=null)?`\nScore: ${ls.score}/${ls.total} (${Math.round(ls.score/ls.total*100)}%)`:'';
   const mistakeText=sess.questions.map((q,qi)=>[
     `Q${qi+1}${q.qnum?' ('+q.qnum+')':''}`,
     q.topic?`Topic: ${q.topic}`:'',
@@ -2706,13 +2720,12 @@ function saveQuickMark(){
   const det=_quickDetected||{};
   const subj=det.subj||SUBJECTS.find(s=>s.id===_quickSid)||SUBJECTS[0];
   const parsed=det.parsed;
-  const total=_quickScore.total,lost=_quickScore.lost;
-  const earned=(total!=null&&lost!=null)?(total-lost):null;
+  const total=_quickScore.total;
   const session={
     id:Date.now(),
     paper:parsed?parsed.label:(det.code||subj.name+' paper'),
     date:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),
-    score:earned,totalMarks:total,
+    score:null,totalMarks:total,autoScore:true,
     questions:(_quickParsed||[]).map(q=>({
       id:Date.now()+Math.random(),qnum:q.qnum||'',topic:q.topic||'',diff:q.difficulty||'',
       marks:q.marks_lost?String(q.marks_lost):'',q:q.question||'',
@@ -2729,7 +2742,8 @@ function saveQuickMark(){
   const banner=document.getElementById('quick-saved-banner');
   const txt=document.getElementById('quick-saved-txt');
   if(banner&&txt){
-    const scoreStr=(earned!=null&&total)?` Score: <strong>${earned}/${total}</strong> (${Math.round(earned/total*100)}%).`:'';
+    const ls=getSessionScore(session);
+    const scoreStr=(ls.score!=null&&ls.total)?` Score: <strong>${ls.score}/${ls.total}</strong> (${Math.round(ls.score/ls.total*100)}%).`:'';
     txt.innerHTML='<strong>Saved!</strong> '+session.questions.length+' mistake'+(session.questions.length!==1?'s':'')+' logged under <strong>'+subj.name+'</strong>'+(parsed?' — '+session.paper:'')+'.'+scoreStr;
     banner.style.display='flex';
   }
