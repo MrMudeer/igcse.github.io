@@ -1318,6 +1318,7 @@ function renderMLSubject(sid){
           ${allRev?`<span class="sess-rev">All reviewed</span>`:revCt>0?`<span class="sess-qct">${revCt}/${sess.questions.length} rev</span>`:''}
         </div>
         <div class="sess-hdr-acts" onclick="event.stopPropagation()">
+          <button class="sess-act" onclick="copySessionPrompt('${sid}',${sess.id})">✦ Copy</button>
           <button class="sess-act" onclick="toggleInline('${sid}',${sess.id})">+ Add Q</button>
           <button class="sess-act danger" onclick="delSess('${sid}',${sess.id})">Delete</button>
         </div>
@@ -1627,14 +1628,57 @@ function updateAKeyUI(){
 // MODAL HELPERS
 // ══════════════════════════════════════════
 let _curSid=null,_aiParsed=[],_bulkParsed=[],_answerFiles=[],_manualMSFiles=[],_bulkImgFiles=[];
+let _aiScore={total:null,lost:null},_quickScore={total:null,lost:null};
 
 function openModal(id){document.getElementById(id).style.display='block';document.body.style.overflow='hidden';}
 function closeModal(id){document.getElementById(id).style.display='none';document.body.style.overflow='';}
+
+// Extract a JSON object (with mistakes array + score fields) from Claude's response.
+// Falls back to extractJSONArray if response is just a bare array.
+function extractMarkingResult(text){
+  if(!text)return{total_marks:null,marks_lost:null,mistakes:[]};
+  let s=text.replace(/```json|```/gi,'').trim();
+  // Try to find a JSON object first
+  const objStart=s.indexOf('{');
+  const objEnd=s.lastIndexOf('}');
+  if(objStart>=0&&objEnd>objStart){
+    try{
+      const obj=JSON.parse(s.slice(objStart,objEnd+1));
+      if(obj&&Array.isArray(obj.mistakes)){
+        return{
+          total_marks:typeof obj.total_marks==='number'?obj.total_marks:null,
+          marks_lost:typeof obj.marks_lost==='number'?obj.marks_lost:null,
+          mistakes:obj.mistakes
+        };
+      }
+    }catch(e){
+      // Truncated object — try to salvage mistakes array from inside it
+      const mistakesMatch=s.match(/"mistakes"\s*:\s*\[/);
+      if(mistakesMatch){
+        const arrStart=mistakesMatch.index+mistakesMatch[0].length-1;
+        const salvaged=extractJSONArray(s.slice(arrStart));
+        // Try to get total_marks from before the truncation
+        const tmMatch=s.match(/"total_marks"\s*:\s*(\d+)/);
+        const mlMatch=s.match(/"marks_lost"\s*:\s*(\d+)/);
+        return{
+          total_marks:tmMatch?parseInt(tmMatch[1]):null,
+          marks_lost:mlMatch?parseInt(mlMatch[1]):null,
+          mistakes:salvaged
+        };
+      }
+    }
+  }
+  // Fall back to bare array (legacy)
+  const arr=extractJSONArray(text);
+  return{total_marks:null,marks_lost:null,mistakes:arr};
+}
 
 // Filter out entries that are self-contradicting (Claude says "actually correct" while deducting marks)
 function isRealMistake(q){
   if(!q||!(q.marks_lost>0))return false;
   const err=(q.student_error||'').toLowerCase();
+  // Always keep "answered with help" entries — these are intentionally marked wrong
+  if(err.includes('answered with help')||err.includes('with help')||err.includes('red ink'))return true;
   const contradictions=[
     'actually correct','this is correct','is correct','appears correct',
     'is acceptable','this is acceptable','student is right','answer is right',
@@ -1959,63 +2003,81 @@ function buildSystemPrompt(subjDesc,syllabusCode){
 - If the student clearly demonstrates understanding, give credit even if the exact mark scheme wording is not used.
 - Only deduct marks when the answer is genuinely wrong, incomplete, or missing.
 - Blank/unanswered questions always lose all marks.
+- BE LENIENT WITH DRAWINGS, DIAGRAMS, AND GRAPHS: you cannot judge precise placement, line accuracy, or measurements from a photo. If the student attempted the drawing and it looks roughly reasonable, award the marks. Only mark drawings wrong if clearly missing or completely incorrect (e.g. wrong shape, wrong labels).
 
-RESPONSE FORMAT: You MUST respond with ONLY a raw JSON array. No preamble, no "I'll...", no markdown fences, no commentary. Start your response with [ and end with ].${removedNote}`;
+RESPONSE FORMAT: You MUST respond with ONLY a raw JSON object. No preamble, no "I'll...", no markdown fences, no commentary. Start your response with { and end with }.
+The object MUST have this exact shape:
+{"total_marks": <number, total marks available on the paper>, "marks_lost": <number, total marks lost across all mistakes>, "mistakes": [ array of mistake objects ]}${removedNote}`;
 }
 
-function buildMarkingInstruction(subjDesc,parsedLabel,comment,knowledgeMode){
+function buildMarkingInstruction(subjDesc,parsedLabel,comment,knowledgeMode,redWrong){
   const blank=`
-BLANK/EMPTY ANSWERS: If ANY question or sub-part has NO answer written, or the space is empty, it is WRONG. Include it with ALL marks lost, difficulty "hard", student_error "Question left blank / no answer given". This is the MOST IMPORTANT rule.`;
+BLANK/EMPTY ANSWERS: If ANY question or sub-part has NO answer written, or the space is empty, it is WRONG. Include it with ALL marks lost, difficulty "hard", student_error "Question left blank". This is the MOST IMPORTANT rule.`;
+
+  const redRule=redWrong?`
+
+🔴 RED ANSWER RULE — CRITICAL — APPLIES TO EVERY QUESTION:
+The student has marked some answers in RED INK/PEN. These answers were added with outside help and MUST be marked WRONG, regardless of whether the content is technically correct.
+- For ANY answer you see written in red: include it as a mistake.
+- Set student_error to: "Answered with help (red ink)"
+- Set difficulty to: "hard"
+- Set marks_lost to the FULL marks for that question (treat as if blank).
+- Provide the correct_solution as normal so the student can learn from it.
+- Do NOT skip red answers just because they look correct. The student needs to learn these themselves.`:'';
 
   const checking=`
 CHECKING PROCEDURE:
 1. Go through every question in the paper.
 2. For EACH question, check: is there an answer written? If no → mark as blank (all marks lost).
-3. For EACH answered question, compare the student's answer against the correct answer.
-4. Give credit where the student shows understanding — accept valid alternative wordings and correct synonyms.
-5. Only flag a mistake when the answer is clearly wrong, incomplete, or missing a required element.`;
+3. For EACH answered question, compare against the correct answer. Be lenient — credit valid alternatives.
+4. For drawings/diagrams/graphs: be VERY lenient. You cannot judge precise measurements from a photo. Only mark wrong if clearly missing or completely wrong.
+5. Only flag a mistake when the answer is genuinely wrong, incomplete, or missing.`;
+
+  const commentBlock=comment?`\n\n=== STUDENT INSTRUCTIONS — FOLLOW THESE EXACTLY ===\n${comment}\n=== END STUDENT INSTRUCTIONS ===\n`:'';
+
+  const objectFormat=`Return ONLY a raw JSON object. Start with { and end with }. No markdown fences, no preamble.
+
+Format:
+{
+  "total_marks": <number, e.g. 80 — the total marks available on this paper>,
+  "marks_lost": <number, e.g. 12 — total marks the student lost across all mistakes>,
+  "mistakes": [
+    {"qnum":"3b","topic":"Quadratic equations","difficulty":"easy|medium|hard","marks_lost":2,"question":"<5-10 words summarising the question>","correct_solution":"<1 short sentence>","student_error":"<1 short sentence — just what was wrong>","notes":"<1 short tip, max 10 words>"}
+  ]
+}
+
+difficulty: easy=arithmetic/silly slip, medium=method gap, hard=didn't know / left blank.
+
+CRITICAL FIELD LENGTH RULES (violating these wastes tokens and confuses me):
+- "question": Maximum 10 words. Just the topic of what was asked.
+- "student_error": ONE short sentence. Just what was wrong. NO restating the correct answer. NO equivocation. NO "actually..." mid-sentence corrections.
+- "correct_solution": ONE short sentence. The key answer only. No alternative explanations, no parenthetical corrections.
+- "notes": Maximum 10 words. ONE revision tip.
+- If you find yourself writing "actually" or correcting yourself mid-sentence, STOP and rewrite shorter.
+
+CRITICAL: ONLY include questions where marks were LOST (marks_lost >= 1). If the student got it right, SKIP IT — do not add it to the mistakes array.
+SELF-CHECK before adding any entry: Re-read the student's answer. If it is actually valid/correct/acceptable, DO NOT add it. Never write "this is actually correct", "both correct", "is acceptable" in student_error — if any of these apply, the entry should not exist.`;
 
   if(knowledgeMode){
-    return `Now mark this ${subjDesc} paper${parsedLabel?' ('+parsedLabel+')':''} using your expert knowledge.
-${comment?'STUDENT NOTE: '+comment+'\n':''}${blank}${checking}
+    return `Now mark this ${subjDesc} paper${parsedLabel?' ('+parsedLabel+')':''} using your expert knowledge.${commentBlock}${redRule}${blank}${checking}
 
 MARKING APPROACH:
-- Be fair. If the student's answer demonstrates correct understanding, give them the mark even if phrased differently from what you'd expect.
-- For calculations: if the method is correct but there's a minor arithmetic slip, award method marks and only deduct the accuracy mark.
-- For written answers: credit the key ideas even if the exact terminology isn't used, as long as the science is correct.
-- Only deduct marks when something is genuinely wrong or missing.
+- Be fair. If the student's answer demonstrates correct understanding, give them the mark.
+- For calculations: correct method + minor arithmetic slip = award method marks.
+- For drawings: be very lenient — you cannot judge precise placement from photos.
 
-Return ONLY a JSON array (no markdown, no commentary, no text before or after):
-[{"qnum":"3b","topic":"Quadratic equations","difficulty":"easy|medium|hard","marks_lost":2,"question":"What the question asked","correct_solution":"Full correct answer with key steps","student_error":"What was wrong or missing","notes":"What to revise"}]
-
-difficulty: easy=arithmetic/silly error, medium=method gap, hard=didn't know / left blank.
-IMPORTANT: Be concise in all fields.
-- "student_error": Just say what was wrong in 1 sentence. Do NOT restate the full correct answer here.
-- "correct_solution": Brief correct answer — key points only, not a full essay.
-- "notes": One short revision tip.
-CRITICAL: ONLY include questions where marks were LOST (marks_lost >= 1). If the student got it right, SKIP IT — do not add it to the array.
-SELF-CHECK before adding any entry: Re-read the student's answer and the mark scheme. If the student's answer is actually valid/correct/acceptable, DO NOT add it. Never write phrases like "this is actually correct", "both answers appear correct", "this is acceptable", or "the student is right" in student_error — if any of these apply, the entry should not exist at all.`;
+${objectFormat}`;
   } else {
-    return `Now mark this ${subjDesc} paper${parsedLabel?' ('+parsedLabel+')':''} using the official mark scheme provided above.
-${comment?'STUDENT NOTE: '+comment+'\n':''}
+    return `Now mark this ${subjDesc} paper${parsedLabel?' ('+parsedLabel+')':''} using the official mark scheme provided above.${commentBlock}${redRule}
 MARKING RULES:
 - Follow the mark scheme, but apply CIE's general marking principles fairly.
-- Credit valid alternative answers — the mark scheme says "DO credit answers which are worded differently if they clearly convey the same meaning."
-- Apply "own figure rule" — correct method using a wrong value from earlier = award method marks.
-- Accept correct scientific synonyms and equivalent terms.
-- If the mark scheme says "AW" (alternative wording) or "AVP" (any valid point), be generous.
+- Credit valid alternative answers — CIE says "DO credit answers worded differently if they clearly convey the same meaning."
+- Apply "own figure rule" — correct method with wrong value from earlier = award method marks.
+- Accept scientific synonyms and equivalent terms.
+- For drawings: be very lenient — you cannot judge precise placement from photos.
 - Only deduct marks when the answer is genuinely wrong, missing, or incomplete.${blank}${checking}
 
-Return ONLY a JSON array (no markdown, no commentary, no text before or after):
-[{"qnum":"3b","topic":"Quadratic equations","difficulty":"easy|medium|hard","marks_lost":2,"question":"What the question asked","correct_solution":"Correct answer per mark scheme","student_error":"What was wrong or missing","notes":"What to revise"}]
-
-difficulty: easy=arithmetic/silly error, medium=method gap, hard=didn't know / left blank.
-IMPORTANT: Be concise in all fields.
-- "student_error": Just say what was wrong in 1 sentence. Do NOT restate the full correct answer here.
-- "correct_solution": Brief correct answer — key points only, not a full essay.
-- "notes": One short revision tip.
-CRITICAL: ONLY include questions where marks were LOST (marks_lost >= 1). If the student got it right, SKIP IT — do not add it to the array.
-SELF-CHECK before adding any entry: Re-read the student's answer and the mark scheme. If the student's answer matches the mark scheme or any of its accepted alternatives, DO NOT add it. Never write phrases like "this is actually correct", "both answers appear correct", "this is acceptable", or "the student is right" in student_error — if any of these apply, the entry should not exist at all.`;
+${objectFormat}`;
   }
 }
 
@@ -2028,7 +2090,6 @@ async function runMarking(){
   const codeVal=document.getElementById('ai-code').value||'';
   const comment=document.getElementById('ai-comment').value||'';
   const redWrong=document.getElementById('ai-red-wrong')&&document.getElementById('ai-red-wrong').checked;
-  const fullComment=(redWrong?'IMPORTANT: Any answer written in RED ink/pen was added with outside help and must be marked WRONG. For red answers, set student_error to "Answered with help" and difficulty to "hard". ':'')+(comment||'');
   const parsed=parseCIE(codeVal);const msInfo=parsed?buildMSUrl(parsed):null;
   const subj=SUBJECTS.find(s=>s.id===_curSid);
   document.getElementById('ai-step1').style.display='none';
@@ -2080,7 +2141,7 @@ async function runMarking(){
 
     const subjDesc=subj.name+' ('+subj.code+')';
     const sysPrompt=buildSystemPrompt(subjDesc,subj.code);
-    const instruction=buildMarkingInstruction(subjDesc,parsed?parsed.label:codeVal,fullComment,_aiMSMode==='knowledge');
+    const instruction=buildMarkingInstruction(subjDesc,parsed?parsed.label:codeVal,comment,_aiMSMode==='knowledge',redWrong);
 
     log.push('SYSTEM PROMPT (first 200 chars): '+sysPrompt.slice(0,200));
     log.push('INSTRUCTION (first 300 chars): '+instruction.slice(0,300));
@@ -2103,9 +2164,12 @@ async function runMarking(){
     const raw=data.content.find(c=>c.type==='text')?.text||'[]';
     log.push('RAW RESPONSE TEXT (full): '+raw);
 
-    _aiParsed=extractJSONArray(raw).filter(isRealMistake);
+    const result=extractMarkingResult(raw);
+    _aiParsed=result.mistakes.filter(isRealMistake);
+    _aiScore={total:result.total_marks,lost:result.marks_lost};
     const wasTruncated=data.stop_reason==='max_tokens';
     log.push('TRUNCATED: '+(wasTruncated?'YES — response cut off before finishing':'no'));
+    log.push('SCORE: '+(result.total_marks!=null?(result.total_marks-result.marks_lost)+'/'+result.total_marks:'(no score)'));
     log.push('PARSED MISTAKES: '+_aiParsed.length+' items'+(wasTruncated?' (salvaged from truncated response)':''));
     if(_aiParsed.length>0) log.push('FIRST MISTAKE: '+JSON.stringify(_aiParsed[0]));
 
@@ -2144,7 +2208,10 @@ function renderMarkingResults(code,wasTruncated){
   document.getElementById('ai-loading').style.display='none';
   document.getElementById('ai-results').style.display='block';
   const truncNote=wasTruncated?' (response was truncated — some mistakes at the end may be missing)':'';
-  document.getElementById('ai-summary').textContent=`Claude found ${_aiParsed.length} mistake${_aiParsed.length!==1?'s':''}${truncNote}. Review then save.`;
+  const scoreStr=(_aiScore.total!=null&&_aiScore.lost!=null)
+    ?` Score: ${_aiScore.total-_aiScore.lost}/${_aiScore.total} (${Math.round((_aiScore.total-_aiScore.lost)/_aiScore.total*100)}%).`
+    :'';
+  document.getElementById('ai-summary').textContent=`Claude found ${_aiParsed.length} mistake${_aiParsed.length!==1?'s':''}${truncNote}.${scoreStr} Review then save.`;
   document.getElementById('ai-save-btn').style.display='inline-flex';
   document.getElementById('ai-q-list').innerHTML=_aiParsed.map((q,i)=>`
     <div style="background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:.85rem 1rem">
@@ -2165,12 +2232,16 @@ function saveMarking(){
   const codeVal=document.getElementById('ai-code').value||'';
   const subj=SUBJECTS.find(s=>s.id===_curSid);
   const p=parseCIE(codeVal);
-  const session={id:Date.now(),paper:p?p.label:(codeVal||subj.name+' paper'),date:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),score:null,totalMarks:null,
+  const total=_aiScore.total,lost=_aiScore.lost;
+  const earned=(total!=null&&lost!=null)?(total-lost):null;
+  const session={id:Date.now(),paper:p?p.label:(codeVal||subj.name+' paper'),date:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),score:earned,totalMarks:total,
     questions:_aiParsed.map(q=>({id:Date.now()+Math.random(),qnum:q.qnum||'',topic:q.topic||'',diff:q.difficulty||'',marks:q.marks_lost?String(q.marks_lost):'',q:q.question||'',sol:q.correct_solution||'',notes:(q.student_error?'Error: '+q.student_error+'. ':'')+( q.notes||''),reviewed:false}))};
   mistakeData[_curSid].unshift(session);
   autocheckPP(_curSid,codeVal);
   saveLocal();renderMLSubject(_curSid);closeModal('ai-modal');
-  showToast(`Saved ${session.questions.length} mistakes from AI marking`);_aiParsed=[];
+  const scoreMsg=(earned!=null&&total)?` — score ${earned}/${total}`:'';
+  showToast(`Saved ${session.questions.length} mistakes${scoreMsg}`);
+  _aiParsed=[];_aiScore={total:null,lost:null};
 }
 
 // ══════════════════════════════════════════
@@ -2253,6 +2324,39 @@ function saveBulk(){
 // ══════════════════════════════════════════
 // AI PROMPT COPY
 // ══════════════════════════════════════════
+function copySessionPrompt(sid,sessId){
+  const sess=(mistakeData[sid]||[]).find(s=>s.id===sessId);
+  if(!sess||!sess.questions.length){showToast('No mistakes in this paper');return;}
+  const subj=SUBJECTS.find(s=>s.id===sid);
+  const scoreStr=(sess.score!=null&&sess.totalMarks!=null)?`\nScore: ${sess.score}/${sess.totalMarks} (${Math.round(sess.score/sess.totalMarks*100)}%)`:'';
+  const mistakeText=sess.questions.map((q,qi)=>[
+    `Q${qi+1}${q.qnum?' ('+q.qnum+')':''}`,
+    q.topic?`Topic: ${q.topic}`:'',
+    q.diff?`Difficulty: ${DIFF_LBL[q.diff]}`:'',
+    q.marks?`Marks lost: ${q.marks}`:'',
+    `Question: ${q.q}`,
+    `Correct solution: ${q.sol}`,
+    q.notes?`Notes: ${q.notes}`:''
+  ].filter(Boolean).join('\n')).join('\n\n');
+  const prompt=`I just finished a CIE IGCSE ${subj.name} (${subj.code}) past paper: ${sess.paper}${scoreStr}
+
+Here are the ${sess.questions.length} mistakes I made. Please:
+1. Walk me through each mistake one at a time
+2. Explain why I got it wrong and what I should have done
+3. Give me the underlying concept I need to revise
+4. After each mistake, ask if I understand before moving on
+5. At the end, summarise the topics I most need to focus on
+
+MISTAKES:
+
+${mistakeText}`;
+  navigator.clipboard.writeText(prompt).then(()=>{
+    showToast(`Prompt copied — ${sess.questions.length} mistake${sess.questions.length!==1?'s':''} from this paper`);
+  }).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=prompt;ta.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:80%;height:60%;z-index:9999;padding:1rem;font-size:12px;border-radius:8px';document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);showToast('Copied!');
+  });
+}
+
 function copyAIPrompt(sid){
   const sessions=mistakeData[sid]||[];const subj=SUBJECTS.find(s=>s.id===sid);
   if(!sessions.length){showToast('No mistakes logged yet');return;}
@@ -2440,7 +2544,6 @@ async function runQuickMark(){
   const key=getAKey();if(!key){alert('No API key set.');return;}
   const comment=(document.getElementById('quick-comment')||{}).value||'';
   const redWrong=document.getElementById('quick-red-wrong')&&document.getElementById('quick-red-wrong').checked;
-  const fullComment=(redWrong?'IMPORTANT: Any answer written in RED ink/pen was added with outside help and must be marked WRONG. For red answers, set student_error to "Answered with help" and difficulty to "hard". ':'')+(comment||'');
   document.getElementById('quick-step1').style.display='none';
   document.getElementById('quick-step2').style.display='block';
   document.getElementById('quick-loading').style.display='block';
@@ -2536,7 +2639,7 @@ async function runQuickMark(){
 
     const subjDesc=subj?subj.name+' ('+subj.code+')':'a CIE IGCSE subject';
     const sysPrompt=buildSystemPrompt(subjDesc,subj?subj.code:null);
-    const instruction=buildMarkingInstruction(subjDesc,parsed?parsed.label:detectedCode,fullComment,_quickMSMode==='knowledge');
+    const instruction=buildMarkingInstruction(subjDesc,parsed?parsed.label:detectedCode,comment,_quickMSMode==='knowledge',redWrong);
 
     log.push('SYSTEM PROMPT (first 200): '+sysPrompt.slice(0,200));
     log.push('INSTRUCTION (first 300): '+instruction.slice(0,300));
@@ -2559,9 +2662,12 @@ async function runQuickMark(){
     const raw=data.content.find(c=>c.type==='text')?.text||'[]';
     log.push('RAW RESPONSE (full): '+raw);
 
-    _quickParsed=extractJSONArray(raw).filter(isRealMistake);
+    const result=extractMarkingResult(raw);
+    _quickParsed=result.mistakes.filter(isRealMistake);
+    _quickScore={total:result.total_marks,lost:result.marks_lost};
     const wasTruncated=data.stop_reason==='max_tokens';
     log.push('TRUNCATED: '+(wasTruncated?'YES':'no'));
+    log.push('SCORE: '+(result.total_marks!=null?(result.total_marks-result.marks_lost)+'/'+result.total_marks:'(no score)'));
     log.push('PARSED MISTAKES: '+_quickParsed.length+(wasTruncated?' (salvaged from truncated response)':''));
     _quickDetected={code:detectedCode,parsed,subj,msInfo};
 
@@ -2578,7 +2684,10 @@ async function runQuickMark(){
       return;
     }
     const truncNote=wasTruncated?' (truncated — some may be missing)':'';
-    document.getElementById('quick-summary').textContent='Claude found '+_quickParsed.length+' mistake'+(_quickParsed.length!==1?'s':'')+truncNote+'. Review then save.';
+    const scoreStr=(_quickScore.total!=null&&_quickScore.lost!=null)
+      ?` Score: ${_quickScore.total-_quickScore.lost}/${_quickScore.total} (${Math.round((_quickScore.total-_quickScore.lost)/_quickScore.total*100)}%).`
+      :'';
+    document.getElementById('quick-summary').textContent='Claude found '+_quickParsed.length+' mistake'+(_quickParsed.length!==1?'s':'')+truncNote+'.'+scoreStr+' Review then save.';
     document.getElementById('quick-save-btn').style.display='inline-flex';
     document.getElementById('quick-q-list').innerHTML=_quickParsed.map((q,i)=>'<div style="background:var(--bg);border:1px solid var(--border);border-radius:9px;padding:.8rem 1rem"><div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;flex-wrap:wrap"><span style="font-family:\'DM Mono\',monospace;font-size:11px;font-weight:500">'+(q.qnum||'Q'+(i+1))+'</span>'+(q.topic?'<span class="tag tag-topic">'+q.topic+'</span>':'')+(q.difficulty?'<span class="tag '+(DIFF_CLS[q.difficulty]||'tag-topic')+'">'+(DIFF_LBL[q.difficulty]||q.difficulty)+'</span>':'')+(q.marks_lost?'<span class="tag tag-marks">-'+q.marks_lost+'m</span>':'')+'</div><div class="qlbl">Question</div><div class="qtxt" style="margin-bottom:7px">'+(q.question||'')+'</div><div class="qlbl">Correct solution</div><div class="qsol">'+(q.correct_solution||'')+'</div>'+(q.student_error?'<div class="qnotes">Error: '+q.student_error+'</div>':'')+'</div>').join('')+renderDebugLog(log);
   }catch(e){
@@ -2597,11 +2706,13 @@ function saveQuickMark(){
   const det=_quickDetected||{};
   const subj=det.subj||SUBJECTS.find(s=>s.id===_quickSid)||SUBJECTS[0];
   const parsed=det.parsed;
+  const total=_quickScore.total,lost=_quickScore.lost;
+  const earned=(total!=null&&lost!=null)?(total-lost):null;
   const session={
     id:Date.now(),
     paper:parsed?parsed.label:(det.code||subj.name+' paper'),
     date:new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}),
-    score:null,totalMarks:null,
+    score:earned,totalMarks:total,
     questions:(_quickParsed||[]).map(q=>({
       id:Date.now()+Math.random(),qnum:q.qnum||'',topic:q.topic||'',diff:q.difficulty||'',
       marks:q.marks_lost?String(q.marks_lost):'',q:q.question||'',
@@ -2618,11 +2729,12 @@ function saveQuickMark(){
   const banner=document.getElementById('quick-saved-banner');
   const txt=document.getElementById('quick-saved-txt');
   if(banner&&txt){
-    txt.innerHTML='<strong>Saved!</strong> '+session.questions.length+' mistake'+(session.questions.length!==1?'s':'')+' logged under <strong>'+subj.name+'</strong>'+(parsed?' — '+session.paper:'')+'.';
+    const scoreStr=(earned!=null&&total)?` Score: <strong>${earned}/${total}</strong> (${Math.round(earned/total*100)}%).`:'';
+    txt.innerHTML='<strong>Saved!</strong> '+session.questions.length+' mistake'+(session.questions.length!==1?'s':'')+' logged under <strong>'+subj.name+'</strong>'+(parsed?' — '+session.paper:'')+'.'+scoreStr;
     banner.style.display='flex';
   }
   showToast('Saved to '+subj.name+' mistake log');
-  _quickParsed=[];
+  _quickParsed=[];_quickScore={total:null,lost:null};
 }
 
 function quickGoToSubject(){
